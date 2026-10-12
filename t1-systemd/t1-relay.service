@@ -1,0 +1,16 @@
+[Unit]
+Description=T1 RC003 -> Apple TV relay (pyatv)
+After=bluetooth.service network-online.target
+Wants=bluetooth.service network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/remote-hub
+ExecStart=/opt/pyatv/bin/python3 /root/remote-hub/relay_min.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log.hdd/relay_min.log
+StandardError=append:/var/log.hdd/relay_min.log
+
+[Install]
+WantedBy=multi-user.target

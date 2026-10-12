@@ -1,0 +1,17 @@
+# /etc/systemd/system/t1-webui.service
+[Unit]
+Description=T1 web control panel (:8765) - voice target switch + keymap config
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/remote-hub
+ExecStart=/usr/bin/python3 -u /root/remote-hub/t1_webui.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log.hdd/t1_webui.log
+StandardError=append:/var/log.hdd/t1_webui.log
+
+[Install]
+WantedBy=multi-user.target

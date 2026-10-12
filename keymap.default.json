@@ -1,0 +1,298 @@
+{
+  "version": 2,
+  "hold_threshold": 0.6,
+  "double_window": 0.3,
+  "targets": {
+    "atv": {
+      "keys": {
+        "63": {
+          "label": "语音",
+          "locked": true,
+          "note": "语音链专用：目标由主页三按钮切换（ATV=开 YouTube / Mac·Windows=语音输入）",
+          "single": null,
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "102": {
+          "label": "主页",
+          "single": "home",
+          "double": null,
+          "long": "home_hold",
+          "repeat": false
+        },
+        "158": {
+          "label": "返回",
+          "single": "menu",
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "103": {
+          "label": "上",
+          "single": "up",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "108": {
+          "label": "下",
+          "single": "down",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "105": {
+          "label": "左",
+          "single": "left",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "106": {
+          "label": "右",
+          "single": "right",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "28": {
+          "label": "OK",
+          "single": "select",
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "115": {
+          "label": "音量+",
+          "single": "volume_up",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "114": {
+          "label": "音量-",
+          "single": "volume_down",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "116": {
+          "label": "电源",
+          "single": "__POWER__",
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "41": {
+          "label": "直播",
+          "single": "__LAUNCH__:com.zentraedi.zspaceTV",
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "127": {
+          "label": "菜单",
+          "single": "__PLAY_PAUSE__",
+          "double": null,
+          "long": null,
+          "repeat": false
+        }
+      }
+    },
+    "mac": {
+      "keys": {
+        "63": {
+          "label": "语音",
+          "locked": true,
+          "note": "语音链专用：按住说话（本机语音输入）；不参与键位映射",
+          "single": null,
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "102": {
+          "label": "主页",
+          "single": "APP:CYCLE",
+          "double": null,
+          "long": "APP:PICK",
+          "repeat": false
+        },
+        "158": {
+          "label": "返回",
+          "single": "BACKSPACE",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "103": {
+          "label": "上",
+          "single": "UP",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "108": {
+          "label": "下",
+          "single": "DOWN",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "105": {
+          "label": "左",
+          "single": "LEFT",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "106": {
+          "label": "右",
+          "single": "RIGHT",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "28": {
+          "label": "OK",
+          "single": "ENTER",
+          "double": null,
+          "long": "CLICK",
+          "repeat": false
+        },
+        "115": {
+          "label": "音量+",
+          "single": "SPACE",
+          "double": null,
+          "long": "PAGEUP",
+          "repeat": false
+        },
+        "114": {
+          "label": "音量-",
+          "single": "TAB",
+          "double": null,
+          "long": "PAGEDOWN",
+          "repeat": false
+        },
+        "116": {
+          "label": "电源",
+          "single": "APP:workbuddy",
+          "double": null,
+          "long": "APP:CLOSE",
+          "repeat": false
+        },
+        "41": {
+          "label": "直播",
+          "single": "FOCUS_INPUT",
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "127": {
+          "label": "菜单",
+          "single": "ESC",
+          "double": null,
+          "long": null,
+          "repeat": true
+        }
+      }
+    },
+    "win": {
+      "keys": {
+        "63": {
+          "label": "语音",
+          "locked": true,
+          "note": "语音链专用：按住说话（本机语音输入）；不参与键位映射",
+          "single": null,
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "102": {
+          "label": "主页",
+          "single": "APP:CYCLE",
+          "double": null,
+          "long": "APP:PICK",
+          "repeat": false
+        },
+        "158": {
+          "label": "返回",
+          "single": "BACKSPACE",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "103": {
+          "label": "上",
+          "single": "UP",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "108": {
+          "label": "下",
+          "single": "DOWN",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "105": {
+          "label": "左",
+          "single": "LEFT",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "106": {
+          "label": "右",
+          "single": "RIGHT",
+          "double": null,
+          "long": null,
+          "repeat": true
+        },
+        "28": {
+          "label": "OK",
+          "single": "ENTER",
+          "double": null,
+          "long": "CLICK",
+          "repeat": false
+        },
+        "115": {
+          "label": "音量+",
+          "single": "SPACE",
+          "double": null,
+          "long": "PAGEUP",
+          "repeat": false
+        },
+        "114": {
+          "label": "音量-",
+          "single": "TAB",
+          "double": null,
+          "long": "PAGEDOWN",
+          "repeat": false
+        },
+        "116": {
+          "label": "电源",
+          "single": "APP:workbuddy",
+          "double": null,
+          "long": "APP:CLOSE",
+          "repeat": false
+        },
+        "41": {
+          "label": "直播",
+          "single": "FOCUS_INPUT",
+          "double": null,
+          "long": null,
+          "repeat": false
+        },
+        "127": {
+          "label": "菜单",
+          "single": "ESC",
+          "double": null,
+          "long": null,
+          "repeat": true
+        }
+      }
+    }
+  }
+}

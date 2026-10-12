@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.remotehub.cgpost-serve</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/CGPost.app/Contents/MacOS/cgpost</string>
+        <string>serve</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/cgpost_serve_stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/cgpost_serve_stdout.log</string>
+</dict>
+</plist>

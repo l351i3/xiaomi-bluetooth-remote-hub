@@ -1,0 +1,16 @@
+[Unit]
+Description=T1 ATVV voice stream bridge (RC003 mic -> UDP Mac:8789)
+After=bluetooth.service network-online.target
+Wants=bluetooth.service network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/remote-hub
+ExecStart=/usr/bin/python3 -u /root/remote-hub/atvv_service.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log.hdd/atvv_service.log
+StandardError=append:/var/log.hdd/atvv_service.log
+
+[Install]
+WantedBy=multi-user.target

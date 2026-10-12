@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.remotehub.inject.ropt-tap1</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/iohid_post</string>
+        <string>ropt-tap1</string>
+    </array>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/inject.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/inject.log</string>
+</dict>
+</plist>

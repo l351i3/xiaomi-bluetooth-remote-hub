@@ -1,0 +1,16 @@
+[Unit]
+Description=T1 voice key forwarder (RC003 key63 -> UDP Mac:8788)
+After=bluetooth.service network-online.target
+Wants=bluetooth.service network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/remote-hub
+ExecStart=/usr/bin/python3 -u /root/remote-hub/voice_fwd.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log.hdd/voice_fwd.log
+StandardError=append:/var/log.hdd/voice_fwd.log
+
+[Install]
+WantedBy=multi-user.target

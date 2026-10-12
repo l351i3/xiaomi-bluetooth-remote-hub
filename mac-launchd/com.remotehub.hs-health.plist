@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.remotehub.hs-health</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/username/.workbuddy/binaries/python/versions/3.13.12/bin/python3</string>
+        <string>-u</string>
+        <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/hs_health.py</string>
+        <string>--fix</string>
+        <string>--notify</string>
+        <string>--quiet</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>StandardOutPath</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/hs_health.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/hs_health.log</string>
+</dict>
+</plist>
