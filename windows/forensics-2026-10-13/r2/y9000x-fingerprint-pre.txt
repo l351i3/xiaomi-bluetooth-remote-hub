@@ -1,0 +1,138 @@
+﻿dir=C:\Users\username\remotehub-win
+time=2026-10-13 14:15:32
+win_receiver.py sha256=BA94B2436A8217036CC4973D365A3D12E0665B9C8A28C6E54758F1A00645C234 size=22679 mtime=2026-10-13 14:08:15
+win_actions.py sha256=7EFE137DF5CF6446BD86772294906AB068F3CC19C88835584359A1F6458AFF0F size=135073 mtime=2026-10-13 14:08:15
+win_audio_switch.py sha256=0AEE59E99E92BEAA6AE77313507B8C45EF434420539A5BF1241A8A36DBA3117B size=19360 mtime=2026-10-13 14:08:15
+receiver.log HASH-ERROR
+win_actions VERSION line: VERSION = "1.12"
+win_receiver header: remotehub-win receiver v1.8 —— Windows 遥控接收端（Windows）
+scheduled-task state: Ready
+--- processes (python/cmd) ---
+pid=15976 cmd.exe | C:\WINDOWS\system32\cmd.exe /d /s /c ""C:\Program Files\WindowsApps\AppleInc.iCloud_15.10.39.0_x64__nzyj5cx40ttqa\iCloud\iCloudPasswordsExtensionHelper.exe" chrome-extension://pejdijmoenmkgeppbflobdenhhabjlaj/ --parent-window=0" < \\.\pipe\chrome.nativeMessaging.in.6cec073f2b8e12ba > \\.\pipe\chrome.nativeMessaging.out.6cec073f2b8e12ba
+pid=37124 pythonw.exe | "C:\Users\username\AppData\Local\Programs\Python\Python312\pythonw.exe" C:\Users\username\remotehub-win\win_audio_receiver.py
+pid=51688 cmd.exe | C:\WINDOWS\system32\cmd.exe /d /s /c "C:\Users\username\.workbuddy\plugins\cache\workbuddy-builtin\weixinpay\1.6.110\bin\run-node ^"C:\Users\username\.workbuddy\plugins\cache\workbuddy-builtin\weixinpay\1.6.110/dist/mcp-server.mjs^""
+pid=37892 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=44912 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=37996 pythonw.exe | "C:\Users\username\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:\Users\username\remotehub-win\win_receiver.py" 
+pid=14996 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+--- receiver.log tail 120 ---
+2026-10-13 13:38:53 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:38:53 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:38:54 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:38:54 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:38:54 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:38:54 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:38:54 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:38:55 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:38:55 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:38:55 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:38:55 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:38:55 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:38:56 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:38:56 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:38:57 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:38:57 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:38:57 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:38:57 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:38:58 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:38:59 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:04 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:39:04 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:06 MOUSE MOUSE:MOVE:RIGHT DOWN -> move RIGHT on
+2026-10-13 13:39:06 MOUSE MOUSE:MOVE:RIGHT UP -> move RIGHT off
+2026-10-13 13:39:06 MOUSE MOUSE:MOVE:RIGHT DOWN -> move RIGHT on
+2026-10-13 13:39:06 MOUSE MOUSE:MOVE:RIGHT UP -> move RIGHT off
+2026-10-13 13:39:07 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 13:39:07 MOUSE MOUSE:MOVE:LEFT UP -> move LEFT off
+2026-10-13 13:39:07 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 13:39:07 MOUSE MOUSE:MOVE:LEFT UP -> move LEFT off
+2026-10-13 13:39:08 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:39:08 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:39:11 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:39:11 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:12 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:39:12 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:15 MOUSE MOUSE:RCLICK DOWN -> rclick FAIL
+2026-10-13 13:39:21 MOUSE MOUSE:RCLICK DOWN -> rclick FAIL
+2026-10-13 13:39:26 MOUSE MOUSE:LCLICK DOWN -> lclick FAIL
+2026-10-13 13:39:27 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:39:27 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:39:30 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 13:39:30 MOUSE MOUSE:MOVE:LEFT UP -> move LEFT off
+2026-10-13 13:39:31 MOUSE MOUSE:MOVE:RIGHT DOWN -> move RIGHT on
+2026-10-13 13:39:31 MOUSE MOUSE:MOVE:RIGHT UP -> move RIGHT off
+2026-10-13 13:39:33 KEY UP down -> vk=0x26 ok=True
+2026-10-13 13:39:33 KEY UP up -> vk=0x26 ok=True
+2026-10-13 13:39:33 KEY UP down -> vk=0x26 ok=True
+2026-10-13 13:39:33 KEY UP up -> vk=0x26 ok=True
+2026-10-13 13:39:35 KEY CLICK queued (ext)
+2026-10-13 13:39:36 EXT CLICK -> CLICK press child type=50000 name=灞曞紑缁?
+2026-10-13 13:39:37 KEY CLICK up ignored (ext: down-only)
+2026-10-13 13:39:37 KEY RIGHT down -> vk=0x27 ok=True
+2026-10-13 13:39:38 KEY RIGHT up -> vk=0x27 ok=True
+2026-10-13 13:39:38 KEY RIGHT down -> vk=0x27 ok=True
+2026-10-13 13:39:38 KEY RIGHT up -> vk=0x27 ok=True
+2026-10-13 13:39:39 KEY UP down -> vk=0x26 ok=True
+2026-10-13 13:39:39 KEY UP up -> vk=0x26 ok=True
+2026-10-13 13:39:39 KEY UP down -> vk=0x26 ok=True
+2026-10-13 13:39:39 KEY UP up -> vk=0x26 ok=True
+2026-10-13 13:39:39 KEY UP down -> vk=0x26 ok=True
+2026-10-13 13:39:40 KEY UP up -> vk=0x26 ok=True
+2026-10-13 13:39:40 KEY UP down -> vk=0x26 ok=True
+2026-10-13 13:39:40 KEY UP up -> vk=0x26 ok=True
+2026-10-13 13:39:45 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:39:45 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:39:46 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:39:46 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:48 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:39:48 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:39:50 MOUSE MOUSE:RCLICK DOWN -> rclick FAIL
+2026-10-13 13:39:51 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:39:51 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:39:52 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:39:52 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:53 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:39:53 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:54 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:39:54 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:39:55 MOUSE MOUSE:LCLICK DOWN -> lclick FAIL
+2026-10-13 13:39:57 MOUSE MOUSE:RCLICK DOWN -> rclick FAIL
+2026-10-13 13:40:02 MOUSE MOUSE:RCLICK DOWN -> rclick FAIL
+2026-10-13 13:40:06 KEY LEFT down -> vk=0x25 ok=True
+2026-10-13 13:40:07 KEY LEFT down -> vk=0x25 ok=True
+2026-10-13 13:40:07 KEY LEFT down -> vk=0x25 ok=True
+2026-10-13 13:40:07 KEY LEFT down -> vk=0x25 ok=True
+2026-10-13 13:40:07 KEY LEFT down -> vk=0x25 ok=True
+2026-10-13 13:40:07 KEY LEFT down -> vk=0x25 ok=True
+2026-10-13 13:40:07 KEY LEFT up -> vk=0x25 ok=True
+2026-10-13 13:40:10 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:40:10 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:40:10 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:40:10 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:40:11 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:40:11 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:40:11 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:40:11 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:40:12 MOUSE MOUSE:MOVE:RIGHT DOWN -> move RIGHT on
+2026-10-13 13:40:12 MOUSE MOUSE:MOVE:RIGHT UP -> move RIGHT off
+2026-10-13 13:40:12 MOUSE MOUSE:MOVE:RIGHT DOWN -> move RIGHT on
+2026-10-13 13:40:12 MOUSE MOUSE:MOVE:RIGHT UP -> move RIGHT off
+2026-10-13 13:40:12 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 13:40:12 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 13:40:13 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:40:13 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 13:40:14 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 13:40:14 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:05:46 KEY RUN:update-win-receiver.bat queued (ext)
+2026-10-13 14:05:46 EXT RUN:update-win-receiver.bat -> RUN -> update-win-receiver.bat
+2026-10-13 14:08:11 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-13 14:08:11 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat
+2026-10-13 14:08:17 === remotehub-win receiver v1.8 starting ===
+2026-10-13 14:08:17 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-13 14:08:17 win_actions v1.12 loaded (uia=ready)
+2026-10-13 14:08:17 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-13 14:08:17 listening udp :8788 (handle_voice)
+2026-10-13 14:08:17 listening udp :8791 (handle_key)
+2026-10-13 14:15:29 MOUSE MOUSE:REPORT DOWN -> report written: C:\Users\username\remotehub-win\state\mouse-report.json
+2026-10-13 14:15:31 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-13 14:15:31 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat

@@ -32,6 +32,21 @@
 17) v1.10 关闭当前应用（APP:CLOSE）：close_poll 轮询注入打桩（立即关/前台切换/延迟关/
      持续存活超时）/ debounce_for=2.0 / is_ext_action 放行 / handle 分派（非 Win 安全降级）/
      源码约定静态守护（WM_CLOSE 通路·优雅退出·UWP 真身·shell 拒绝）
+18) v1.11 鼠标模式（MouseGlide 滑行引擎）：加速离散积分/速度上限/停止即停/1.2s 看门狗/
+    对向相消/斜向不归一化/边界夹取/滚动速率与方向/保活刷新/stop_all +
+    mouse_control 分派矩阵 + 源码约定静态守护（常量·类·入口·WHEEL·线程懒启动）
+19) v1.12 实测反馈修复轮：速度事件驱动清零（stop/看门狗扫除即归零 —— 治「越按越快」,
+    离散按压流对照）/ MODE 提示分派（非 Win 优雅降级）/ REPORT 取证报告落盘
+    （重定向 STATE_DIR 零副作用）/ _mouse_stat 计数与 click ok-fail 分类 +
+    源码约定静态守护（impl 改名·HUD 接入 pump·探针零位移）
+20) v1.13 ★ 跨模块 SendInput 类型冲突修复（元凶级）：类统一运行时断言
+    （win_receiver.INPUT is win_actions.INPUT）/ 兜底分支等价性（sys.modules 哨兵）/
+    源码形态守护（通用层定义·复用分支·异常落盘·input_class_module 指纹）
+21) v1.14 电源键连击切换设备（HUD）：TARGET:SWITCH 分派矩阵（仅 DOWN / 非法目标 /
+    大小写宽容 / 非 Win no-tk 降级）/ 取证计数 / win_actions + win_receiver 源码
+    约定守护（SWITCH_NAMES·_hud_open_text 抽取·pump swhud 接入·双前缀路由·版本标识）
+22) v1.15 FOCUS_INPUT 兜底点击：全 miss + click_at -> NOEDIT+CLICK@底部中央(0.5,0.92) /
+    点击失败如实降级 / 矮窗 y 钳制 / 既有 NOEDIT 断言向后兼容（默认不兜底）
 用法：python3 actions_offline_test.py
 """
 import os
@@ -278,6 +293,36 @@ root2 = FakeElem(CT_WIN)
 u.handle_map[777] = root2
 ok, det, frac = fis(u, win_ctx, {})
 check("全 miss -> NOEDIT", (ok, det.startswith("NOEDIT"), frac), (False, True, None))
+
+# F2 v1.15 全 miss + click_at -> 兜底点击（底部中央 (500,736)）
+u = FakeUia()
+root3 = FakeElem(CT_WIN)
+u.handle_map[777] = root3
+clicked = []
+
+def _fc(x, y):
+    clicked.append((x, y))
+    return True
+
+ok, det, frac = fis(u, win_ctx, {}, click_at=_fc)
+check("全 miss 兜底点击", (ok, det.startswith("NOEDIT+CLICK"), frac), (False, True, None))
+check("兜底点击坐标=底部中央 (500,736)", clicked, [(500, 736)])
+
+# F3 兜底点击失败 -> 普通 NOEDIT（如实返回, 不谎报）
+u = FakeUia()
+root4 = FakeElem(CT_WIN)
+u.handle_map[777] = root4
+ok, det, frac = fis(u, win_ctx, {}, click_at=lambda x, y: False)
+check("兜底点击失败 -> 普通 NOEDIT", (ok, det.startswith("NOEDIT "), frac), (False, True, None))
+
+# F4 矮窗兜底 y 钳制：int(30*0.92)=27 > 30-4=26 -> 钳至 26
+u = FakeUia()
+root5 = FakeElem(CT_WIN)
+u.handle_map[778] = root5
+clicked2 = []
+ok, det, frac = fis(u, {"hwnd": 778, "rect": (0, 0, 1000, 30), "exe_key": "c.exe"}, {},
+                    click_at=lambda x, y: (clicked2.append((x, y)), True)[1])
+check("矮窗兜底 y 钳制 (500,26)", clicked2, [(500, 26)])
 
 # G SetFocus 失败
 u = FakeUia()
@@ -918,7 +963,7 @@ check("handle APP:CLOSE 非 Win 安全", ns["handle"]("APP:CLOSE"), "not-windows
 
 # ⑥ 源码约定静态守护（v1.10）
 check("约定 v1.10 changelog", "v1.10 变更" in _srcv, True)
-check("约定 VERSION 1.10", 'VERSION = "1.10"' in _srcv, True)
+check("约定 VERSION 常量在场", 'VERSION = "1.' in _srcv, True)   # 具体版本由最新组断言
 check("约定 do_app_close 在场", "def do_app_close():" in _srcv, True)
 check("约定 host_child_hwnd 在场", "def host_child_hwnd(hwnd):" in _srcv, True)
 check("约定 close_poll 在场", "def close_poll(" in _srcv, True)
@@ -931,6 +976,345 @@ check("约定 UWP 真身分流", "host_child_hwnd(fg)" in _srcv, True)
 check("约定 优雅退出注释", "不用 TerminateProcess" in _srcv, True)
 check("约定 无 TerminateProcess 调用", "TerminateProcess(" not in _srcv, True)
 check("约定 CLOSE 强防抖注释", "强防抖防连关第二个应用" in _srcv, True)
+
+# ---- 18) v1.11 鼠标模式（MouseGlide 滑行引擎 + mouse_control 分派）----
+print("== 18) v1.11 鼠标模式 / 滑行引擎 ==")
+MG = ns["MouseGlide"]
+
+# 加速: 速度按 tick 离散积分（700px/s² @60Hz —— 与 lua doEvery 同构）
+g = MG()
+g.start("move", "RIGHT", 0.0)
+npos, wheel = g.step(0.0, (100.0, 100.0), (0, 0, 1920, 1080))
+check("单 tick 速度 = ACCEL/60", round(g.speed, 4), round(700 / 60, 4))
+check("单 tick 位移 = v*dt", round(npos[0] - 100.0, 4), round((700 / 60) * (1 / 60), 4))
+check("无滚动返回 None", wheel, None)
+
+# 60 tick -> 速度 700
+for i in range(1, 60):
+    npos, _ = g.step(i / 60.0, npos, (0, 0, 999999, 1080))
+check("60 tick 速度 = 700", round(g.speed, 1), 700.0)
+
+# 速度上限（保活 0.5s 节奏, 对齐真实 T1 0.4s 包）
+for i in range(300):
+    t = 1.0 + i / 60.0
+    if i % 30 == 0:
+        g.start("move", "RIGHT", t)
+    npos, _ = g.step(t, npos, (0, 0, 999999, 1080))
+check("速度上限 1600", g.speed, 1600.0)
+
+# 停止即停
+g.stop("move", "RIGHT")
+check("停止即停(无位移)", g.step(10.0, npos, (0, 0, 1920, 1080)), (None, None))
+check("停止后速度归零", g.speed, 0.0)
+
+# 看门狗 1.2s 无刷新自清（up 丢包兜底刹车）
+g = MG()
+g.start("move", "UP", 0.0)
+check("看门狗窗口内活跃", g.busy(1.0), True)
+check("看门狗超时自清", g.busy(1.3), False)
+
+# 对向相消（零净位移）
+g = MG()
+g.start("move", "UP", 0.0)
+g.start("move", "DOWN", 0.0)
+npos, _ = g.step(0.0, (300.5, 300.5), (0, 0, 1920, 1080))
+check("对向相消(零位移)", npos, (300.5, 300.5))
+
+# 斜向不归一化（各轴分量=单轴值 -> 合成 √2 速, 对齐 lua）
+g = MG()
+g.start("move", "RIGHT", 0.0)
+g.start("move", "DOWN", 0.0)
+npos, _ = g.step(0.0, (100.0, 100.0), (0, 0, 5000, 5000))
+check("斜向各轴=单轴速", round(npos[0] - 100.0, 4), round(700 / 60 / 60, 4))
+
+# 边界夹取（max 排他 -2）
+g = MG()
+g.start("move", "RIGHT", 0.0)
+npos = (1900.0, 500.0)
+lk = 0.0
+for i in range(400):
+    t = i / 60.0
+    if t - lk >= 0.5:
+        g.start("move", "RIGHT", t)
+        lk = t
+    npos, _ = g.step(t, npos, (0, 0, 1920, 1080))
+check("边界夹取 maxx-2", npos[0], 1918.0)
+
+# 滚动速率（≈10 notch/s）与方向（下负上正）
+g = MG()
+g.start("scroll", "UP", 0.0)
+tot = 0
+for i in range(61):
+    _, w = g.step(i / 60.0, (0, 0), (0, 0, 100, 100))
+    tot += (w or 0)
+check("1s 向上滚 8~11 notch", 8 <= tot <= 11, True)
+g = MG()
+g.start("scroll", "DOWN", 0.0)
+tot = 0
+for i in range(61):
+    _, w = g.step(i / 60.0, (0, 0), (0, 0, 100, 100))
+    tot += (w or 0)
+check("1s 向下滚 = 负 notch", -11 <= tot <= -8, True)
+
+# 保活刷新（重复 start 更新时间戳 -> 看门狗不误刹）
+g = MG()
+g.start("move", "LEFT", 0.0)
+g.start("move", "LEFT", 1.0)
+check("保活刷新不误触看门狗", g.busy(1.5), True)
+check("保活过后仍过期(2.3)", g.busy(2.3), False)
+
+# stop_all
+g = MG()
+g.start("move", "LEFT", 0.0)
+g.start("scroll", "UP", 0.0)
+g.stop_all()
+check("stop_all 清空", (g.moves, g.scrolls, g.speed), ({}, {}, 0.0))
+
+# mouse_control 分派矩阵（非 Win: 状态机运行, 平台执行受保护）
+mc = ns["mouse_control"]
+check("mc move down/up", (mc("MOUSE:MOVE:UP", "down"), mc("MOUSE:MOVE:UP", "up")),
+      ("move UP on", "move UP off"))
+check("mc scroll down/up", (mc("MOUSE:SCROLL:DOWN", "down"), mc("MOUSE:SCROLL:DOWN", "up")),
+      ("scroll DOWN on", "scroll DOWN off"))
+check("mc 非法方向", mc("MOUSE:MOVE:X", "down"), "ERR bad-dir MOUSE:MOVE:X")
+check("mc 非法滚动", mc("MOUSE:SCROLL:X", "down"), "ERR bad-scroll MOUSE:SCROLL:X")
+check("mc 未知动作", mc("MOUSE:FOO", "down"), "unknown mouse action: MOUSE:FOO")
+check("mc lclick up 忽略", mc("MOUSE:LCLICK", "up"), "lclick ignored (up)")
+check("mc rclick up 忽略", mc("MOUSE:RCLICK", "up"), "rclick ignored (up)")
+check("mc 大小写宽容", mc("mouse:move:left", "down"), "move LEFT on")
+ns["_glide"].stop_all()
+
+# 源码约定静态守护（v1.11）
+check("约定 v1.11 changelog", "v1.11 变更" in _srcv, True)
+check("约定 VERSION 1.15", 'VERSION = "1.15"' in _srcv, True)
+check("约定 MOUSE_ACCEL=700", "MOUSE_ACCEL = 700.0" in _srcv, True)
+check("约定 MOUSE_MAX=1600", "MOUSE_MAX = 1600.0" in _srcv, True)
+check("约定 MOUSE_STALE=1.2", "MOUSE_STALE = 1.2" in _srcv, True)
+check("约定 MouseGlide 在场", "class MouseGlide:" in _srcv, True)
+check("约定 mouse_control 在场", "def mouse_control(action, phase):" in _srcv, True)
+check("约定 mouse_button_click 在场", "def mouse_button_click(button=" in _srcv, True)
+check("约定 WHEEL 标志位", "0x0800" in _srcv, True)
+check("约定 _send_wheel 在场", "def _send_wheel(notches):" in _srcv, True)
+check("约定 glide 线程懒启动", "def _ensure_glide_thread():" in _srcv, True)
+check("约定 看门狗注释", "保活断流即自停" in _srcv, True)
+check("约定 键盘 INPUT 复用", "_user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))" in _srcv, True)
+
+# ---- 19) v1.12 实测反馈修复轮（速度清零 / MODE / REPORT / 取证统计）----
+import json as _json
+import shutil as _shutil
+import tempfile as _tempfile
+
+print("== 19) v1.12 修复轮 ==")
+
+# 19a. 速度事件驱动清零（核心修复: 旧版唯一清零点在 step, up 间隙 worker 不调 step
+#      -> 速度跨按压累积到 1600 上限; 用户实测「特别快, 无法小距离移动」）
+g = MG()
+g.start("move", "RIGHT", 0.0)
+npos = (100.0, 100.0)
+for i in range(30):
+    npos, _ = g.step(i / 60.0, npos, (0, 0, 5000, 5000))
+check("v1.12 按住中速度>0", g.speed > 0.0, True)
+g.stop("move", "RIGHT")
+check("v1.12 stop 即清零", g.speed, 0.0)
+
+# 离散按压流对照: 单步加速量 = accel*tick = 11.67; 修复后第二次按压从 0 重新起
+g = MG()
+npos = (100.0, 100.0)
+g.start("move", "RIGHT", 0.0)
+npos, _ = g.step(0.0, npos, (0, 0, 5000, 5000))
+sp1 = g.speed
+g.stop("move", "RIGHT")                 # up 到达（间隙内不调 step）
+g.start("move", "RIGHT", 0.2)           # 下一次按压
+g.step(0.2, npos, (0, 0, 5000, 5000))
+check("v1.12 跨按压不累积(单步=11.67)", round(g.speed, 2), round(sp1, 2))
+check("v1.12 对照旧版(旧版=23.33)", round(g.speed, 2) < 23.3, True)
+
+# 看门狗扫除同样清零（UP 丢包兜底场景）
+g = MG()
+g.start("move", "DOWN", 0.0)
+g.step(0.0, (0.0, 0.0), (0, 0, 5000, 5000))
+check("v1.12 看门狗前 speed>0", g.speed > 0.0, True)
+check("v1.12 看门狗超时自清", g.busy(1.3), False)
+check("v1.12 扫除即清零", g.speed, 0.0)
+
+# scroll_accum 随停清零
+g = MG()
+g.start("scroll", "UP", 0.0)
+g.step(0.0, (0, 0), (0, 0, 100, 100))
+g.stop("scroll", "UP")
+check("v1.12 scroll stop 清 accum", g.scroll_accum, 0.0)
+
+# 19b. MODE 提示分派（非 Win -> Tk 线程不可用, 优雅降级; 仅 DOWN）
+check("v1.12 MODE ON(down)", mc("MOUSE:MODE:ON", "down"), "mode hud on (no-tk)")
+check("v1.12 MODE OFF(down)", mc("MOUSE:MODE:OFF", "down"), "mode hud off (no-tk)")
+check("v1.12 MODE up 忽略", mc("MOUSE:MODE:ON", "up"), "mode hint ignored (up)")
+
+# 19c. REPORT 取证报告（重定向 STATE_DIR 到临时目录, 零副作用）
+_tmpd = _tempfile.mkdtemp(prefix="wa-report-")
+_old_state = ns["STATE_DIR"]
+ns["STATE_DIR"] = _tmpd
+try:
+    r = mc("MOUSE:REPORT", "down")
+    _rp = os.path.join(_tmpd, "mouse-report.json")
+    rep = None
+    if os.path.exists(_rp):
+        rep = _json.load(open(_rp, encoding="utf-8"))
+    check("v1.12 REPORT 写入", bool(r.startswith("report written:")) and rep is not None, True)
+    if rep:
+        check("v1.12 REPORT 版本", rep.get("version"), "1.15")
+        check("v1.12 REPORT 计数为字典", isinstance(rep.get("counts"), dict), True)
+        check("v1.12 REPORT last 为列表", isinstance(rep.get("last"), list), True)
+        check("v1.12 REPORT click 计数在场", isinstance(rep.get("click_ok"), int) and isinstance(rep.get("click_fail"), int), True)
+        check("v1.12 REPORT 探针键(仅Win)", ("sendinput_probe" in rep) or (not ns["IS_WIN"]), True)
+    check("v1.12 REPORT up 忽略", mc("MOUSE:REPORT", "up"), "report ignored (up)")
+finally:
+    ns["STATE_DIR"] = _old_state
+    _shutil.rmtree(_tmpd, ignore_errors=True)
+
+# 19d. 取证统计（click ok/FAIL 分类与 ignored 不污染）
+st = ns["_mouse_stat"]
+_c0 = dict(st["counts"])
+_k0, _f0 = st["click_ok"], st["click_fail"]
+mc("MOUSE:LCLICK", "down")              # 非 Win -> "lclick FAIL"
+check("v1.12 lclick FAIL 计数", (st["click_fail"], st["click_ok"]), (_f0 + 1, _k0))
+mc("MOUSE:LCLICK", "up")                # ignored -> 不计 fail
+check("v1.12 ignored 不污染 fail", st["click_fail"], _f0 + 1)
+check("v1.12 counts 累计", st["counts"].get("MOUSE:LCLICK", 0) - _c0.get("MOUSE:LCLICK", 0), 2)
+check("v1.12 last 非空", len(st["last"]) > 0, True)
+ns["_glide"].stop_all()
+
+# 19e. 源码约定静态守护（v1.12）
+check("约定 v1.12 changelog", "v1.12 变更" in _srcv, True)
+check("约定 速度事件清零注释", "事件驱动清零" in _srcv, True)
+check("约定 _mouse_control_impl 改名", "def _mouse_control_impl(action, phase):" in _srcv, True)
+check("约定 取证包裹签名保留", "def mouse_control(action, phase):" in _srcv, True)
+check("约定 _hud_show/_hud_sound", ("def _hud_show(on):" in _srcv) and ("def _hud_sound(on):" in _srcv), True)
+check("约定 _hud_open + pump 接入", ("def _hud_open(on):" in _srcv) and ('cmd.startswith("hud:")' in _srcv), True)
+check("约定 _mouse_report_write", "def _mouse_report_write():" in _srcv, True)
+check("约定 探针零位移", "零位移探针" in _srcv, True)
+check("约定 _mouse_stat_bump", "def _mouse_stat_bump(action, result):" in _srcv, True)
+
+# ---- 20) v1.13 ★ 跨模块 SendInput 类型冲突修复（元凶级 —— 治「OK 键完全无反应」）----
+# 根因: ctypes.windll.user32 为进程级共享对象; win_receiver 与 win_actions 各定义
+# 一套 INPUT 类并各设 SendInput.argtypes（后加载覆盖）→ 两套类不同一, win_actions
+# 侧全部 SendInput 调用抛 TypeError 被 except 吞 → 鼠标点击/滚轮静默全灭。
+# 修复: win_actions 结构定义上移通用层 + win_receiver 复用同一类对象。
+print("== 20) v1.13 SendInput 类统一 ==")
+_srcr = open(os.path.join(HERE, "win_receiver.py"), encoding="utf-8").read()
+
+# 20a. 运行时核心断言: win_receiver 复用的 INPUT 类必须与其加载的 win_actions 同一对象
+#      （ctypes 类型检查按"类对象"判型; 两套类不同一 = 13:39 全灭根因）
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+_wr_ns = {"__file__": os.path.join(HERE, "win_receiver.py"), "__name__": "win_receiver_t20"}
+exec(compile(_srcr, "win_receiver.py", "exec"), _wr_ns)
+_wa2 = _wr_ns.get("win_actions")
+if _wa2 is not None and hasattr(_wa2, "INPUT"):
+    check("20a 类统一 INPUT", _wr_ns["INPUT"] is _wa2.INPUT, True)
+    check("20a 类统一 KEYBDINPUT", _wr_ns["KEYBDINPUT"] is _wa2.KEYBDINPUT, True)
+    check("20a 类统一 MOUSEINPUT", _wr_ns["MOUSEINPUT"] is _wa2.MOUSEINPUT, True)
+    check("20a 类统一 HARDWAREINPUT", _wr_ns["HARDWAREINPUT"] is _wa2.HARDWAREINPUT, True)
+    check("20a 类归属 win_actions", getattr(_wr_ns["INPUT"], "__module__", "?"), "win_actions")
+    check("20a send_vk 可寻址", callable(_wr_ns.get("send_vk")), True)
+else:                                    # win_actions 不可用 -> 兜底分支也须自洽
+    check("20a 兜底分支 INPUT", isinstance(_wr_ns.get("INPUT"), type), True)
+    check("20a 兜底分支字段", [f[0] for f in _wr_ns["INPUT"]._fields_], ["type", "u"])
+
+# 20b. 兜底分支等价性: 强制 win_actions 不可用（sys.modules None 哨兵）——兜底类字段
+#      必须与 win_actions 的类逐项一致（离线降级不失语义）
+_save = sys.modules.get("win_actions")
+sys.modules["win_actions"] = None        # import 命中 None -> ImportError -> 走兜底
+_wr_ns2 = {"__file__": os.path.join(HERE, "win_receiver.py"), "__name__": "win_receiver_t20b"}
+try:
+    exec(compile(_srcr, "win_receiver.py", "exec"), _wr_ns2)
+    if _wr_ns2.get("win_actions") is None:
+        check("20b 兜底 INPUT 字段", [f[0] for f in _wr_ns2["INPUT"]._fields_], ["type", "u"])
+        if _wa2 is not None:
+            check("20b 兜底 mi 字段等价", [f[0] for f in _wr_ns2["MOUSEINPUT"]._fields_],
+                  [f[0] for f in _wa2.MOUSEINPUT._fields_])
+            check("20b 兜底 ki 字段等价", [f[0] for f in _wr_ns2["KEYBDINPUT"]._fields_],
+                  [f[0] for f in _wa2.KEYBDINPUT._fields_])
+            check("20b 兜底 hi 字段等价", [f[0] for f in _wr_ns2["HARDWAREINPUT"]._fields_],
+                  [f[0] for f in _wa2.HARDWAREINPUT._fields_])
+    else:
+        check("20b 兜底分支触发(sys.modules 哨兵)", False, True)
+finally:
+    if _save is None:
+        sys.modules.pop("win_actions", None)
+    else:
+        sys.modules["win_actions"] = _save
+
+# 20c. win_actions 源码形态: 结构定义在通用层（先于 if IS_WIN:）+ 无块内重复
+check("20c wa INPUT 先于 IS_WIN", 0 <= src.find("class INPUT(ctypes.Structure):") < src.find("if IS_WIN:"), True)
+check("20c wa INPUT 唯一定义", src.count("class INPUT(ctypes.Structure):"), 1)
+check("20c wa ULONG_PTR 唯一定义", src.count("ULONG_PTR = ctypes.c_ulonglong"), 1)
+check("20c wa 无块内 INDENT 残留", "    class INPUT(ctypes.Structure):" not in src, True)
+check("20c wa argtypes 引用同型", "POINTER(INPUT)" in src, True)
+
+# 20d. win_receiver 源码形态: 复用分支 + 兜底分支 + 幂等声明
+check("20d wr 复用分支", "INPUT = win_actions.INPUT" in _srcr, True)
+check("20d wr 复用条件 hasattr", 'hasattr(win_actions, "INPUT")' in _srcr, True)
+check("20d wr 兜底定义在场", _srcr.count("class INPUT(ctypes.Structure):"), 1)
+check("20d wr 版本标识 v1.10", "remotehub-win receiver v1.10" in _srcr, True)
+
+# 20e. 异常加固（v1.13: 同类问题今后直达 receiver.log, 不再静默）
+check("20e mouse_click 落盘", "mouse_click error" in src, True)
+check("20e mouse_button_click 落盘", "mouse_button_click error" in src, True)
+check("20e _send_wheel 落盘", "_send_wheel error" in src, True)
+check("20e _send_alt_tap 落盘", "_send_alt_tap error" in src, True)
+check("20e alt_tap 无静默 pass", "_user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))\n        except Exception:\n            pass" not in src, True)
+
+# 20f. REPORT 指纹 + changelog
+check("20f input_class_module 字段", 'rep["input_class_module"]' in src, True)
+check("20f wa changelog v1.13 历史保留", "v1.13 变更" in src, True)
+check("20f wa VERSION 1.15", 'VERSION = "1.15"' in src, True)
+
+# ---- 21) v1.14 电源键连击切换设备（HUD —— 配套 key_bridge v1.15 / T1 voice_fwd v2.7）----
+# 协议: TARGET:SWITCH:ATV|MAC|WIN（仅 DOWN, 重发幂等）。win_receiver v1.10 起同 MOUSE:*
+# 路由直呼 mouse_control; 非 Win 下 Tk 线程不可用 -> no-tk 优雅降级（真机显示「🎯 已切到 X」）。
+print("== 21) v1.14 设备切换 HUD ==")
+
+# 21a. 分派矩阵（非 Win: Tk 不可用 -> no-tk; 仅 DOWN 有效; 非法目标拒绝; 大小写宽容）
+check("21a switch win(down)", mc("TARGET:SWITCH:WIN", "down"), "switch hud win (no-tk)")
+check("21a switch mac(down)", mc("TARGET:SWITCH:MAC", "down"), "switch hud mac (no-tk)")
+check("21a switch atv(down)", mc("TARGET:SWITCH:ATV", "down"), "switch hud atv (no-tk)")
+check("21a up 忽略", mc("TARGET:SWITCH:ATV", "up"), "switch hud ignored (up)")
+check("21a 非法目标拒绝", mc("TARGET:SWITCH:BOGUS", "down"), "ERR bad-target TARGET:SWITCH:BOGUS")
+check("21a 大小写宽容", mc("target:switch:atv", "down"), "switch hud atv (no-tk)")
+_hud_r = mc("TARGET:SWITCH:WIN", "down")
+check("21a 命中专有分支(非 unknown 兜底)", _hud_r.startswith("switch hud"), True)
+
+# 21b. 取证计数（同 MOUSE:* 一条管道, 计数可查）
+check("21b 计数在场", ns["_mouse_stat"]["counts"].get("TARGET:SWITCH:WIN", 0) >= 1, True)
+
+# 21c. win_actions v1.14 源码约定
+check("21c SWITCH_NAMES 表", 'SWITCH_NAMES = {"atv": "ATV", "mac": "macOS", "win": "Windows"}' in _srcv, True)
+check("21c _switch_hud_show", "def _switch_hud_show(name):" in _srcv, True)
+check("21c _switch_hud_open", "def _switch_hud_open(name):" in _srcv, True)
+check("21c _hud_open_text 抽取", "def _hud_open_text(txt):" in _srcv, True)
+check("21c HUD 体系共用", ('def _hud_open(on):' in _srcv) and ('_hud_open_text("鼠标模式" if on else "键盘模式")' in _srcv), True)
+check("21c pump swhud 接入", 'cmd.startswith("swhud:")' in _srcv, True)
+check("21c 文案 🎯", '"🎯 已切到 "' in _srcv, True)
+check("21c changelog v1.14", "v1.14 变更" in _srcv, True)
+check("21c MOUSE:MODE 无回归", 'cmd.startswith("hud:")' in _srcv, True)
+
+# 21d. win_receiver v1.10 源码形态
+check("21d 路由双前缀", 'startswith(("MOUSE:", "TARGET:SWITCH:"))' in _srcr, True)
+check("21d SWITCH 日志 tag", 'tag = "SWITCH" if action.startswith("TARGET:SWITCH:") else "MOUSE"' in _srcr, True)
+check("21d 启动 banner v1.10", "remotehub-win receiver v1.10 starting" in _srcr, True)
+check("21d selftest banner v1.10", "win_receiver v1.10 selftest" in _srcr, True)
+check("21d changelog v1.10", "v1.10 变更" in _srcr, True)
+check("21d 动作表列 TARGET:SWITCH", "TARGET:SWITCH:ATV|MAC|WIN" in _srcr, True)
+
+# ---- 22) v1.15 FOCUS_INPUT 兜底点击（配套 T1 voice_fwd v2.8 / Mac lua v1.5）----
+print("== 22) v1.15 兜底点击源码约定 ==")
+check("22 changelog v1.15", "v1.15 变更" in _srcv, True)
+check("22 click_at 注入参数", "def focus_input_strategy(uia, ctx, cache, click_at=None):" in _srcv, True)
+check("22 兜底点击包装", "def _click_preserve_cursor(x, y):" in _srcv, True)
+check("22 do_focus_input 接线", "click_at=_click_preserve_cursor" in _srcv, True)
+check("22 NOEDIT+CLICK 结果串", "NOEDIT+CLICK@%d,%d" in _srcv, True)
+check("22 app= 观测字段", "[winfix=%s app=%s]" in _srcv, True)
+check("22 v1.14 changelog 历史保留", "v1.14 变更" in _srcv, True)
 
 print("")
 print("== 结果: %d PASS / %d FAIL ==" % (PASS, FAIL))

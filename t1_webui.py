@@ -1,6 +1,27 @@
 #!/usr/bin/env python3
-"""t1_webui.py — T1 控制面板 v2.12 (2026-10-12)
+"""t1_webui.py — T1 控制面板 v2.16 (2026-10-14)
 
+v2.16（10-14）: 主页新增「设备在线状态」条 —— 消费 presence 心跳注册制（T1 :8790）:
+   ATV / macOS / Windows 三设备状态点（绿=在线 / 灰=离线+最后在线秒数 / 黄=未知）,
+   3s 轮询 GET /api/presence（读 state/presence.json; 缺失/过期/损坏 → available=false,
+   前端降级「未知」, 永不阻塞页面其余功能）。配套 presence v1.0 心跳注册 + voice_fwd
+   v2.9 / atvv_service v1.2 离线闸门（本页纯只读消费, 不参与判定）。
+
+v2.15（10-13）: ATV 语音键解锁（配置驱动）—— 用户反馈「ATV 配置页语音键不可设、
+   描述不对」。atv 份 #63 去锁定 + single 默认 __LAUNCH__:com.google.ios.youtube
+   （保持原行为一键开 YouTube）+ note 重写; 配合 relay v0.12（语音键改走通用
+   keymap 分派）网页改绑即生效（可改 home/menu/极空间等任意 ATV 动作）。
+   mac/win 份 #63 保持锁定（按住说话, 语音链专用, 交 voice_fwd）。
+v2.14（10-13）: 三份动作清单新增 TARGET:SWITCH「★ 电源（连击切设备）」—— 电源键 #116
+   连击切换遥控目标（1 击=ATV / 2 击=macOS / 3 击=Windows; 免开网页）。执行端:
+   Mac/Win 目标 = voice_fwd v2.7 TargetSwitcher（长按=关闭当前应用不变）;
+   ATV 目标 = relay v0.11（1 击=电视电源不变 / 2 击=Mac / 3 击=Windows）。
+   三份 keymap 默认 #116.single 已更新为该值; 下拉改回具体动作 = 立即退回普通键语义。
+   ATV 下拉 __POWER__ 改标注「电源切换（立即，无连击）」以与新项区分。
+v2.13（10-13）: mac/win 动作新增 MOUSE:TOGGLE「★ 鼠标模式开/关」—— 长按直播键切换
+   鼠标模式（voice_fwd v2.5 模式层本地消化；模式内 方向=滑行移光标 / OK=点击(短左长右) /
+   音量±=滚动 / 返回=退出）。keymap 生产绑定 = #41 long（两份 keymap 已同步）。
+   接收端: Mac key_bridge v1.13 / Windows win_receiver v1.7+win_actions v1.11。
 v2.12（10-12 21:3x）: 文案同步 —— 主页 win 卡片与描述移除已过时的「（链路待部署）」
    标注（Windows 转发链路 10-11 已上线并实机验收：语音键 = 按住说话、键位与 mac
    100% 对齐）。无功能变更。
@@ -61,6 +82,7 @@ v2.1（10-10 15:3x）: mac/win 新增「应用动作」选项 —— APP:TOGGLE�
   GET  /keymap              三 tab 按键配置页（ATV / Mac / Windows 各一份 13 键配置）
 API:
   GET  /api/state           当前目标
+  GET  /api/presence        设备在线快照（presence.json 只读; 降级安全）
   GET  /api/keymap          当前 v2 配置 + 各目标动作清单
   POST /api/voice_target    {"target": "atv|mac|win"}  写 voice_target 状态文件
   POST /api/keymap          {"target","hold_threshold","double_window","keys"}
@@ -69,13 +91,14 @@ API:
 
 配置 v2 结构: {version:2, hold_threshold, double_window,
               targets: {atv|mac|win: {keys: {"code": {label, single, double, long, repeat, locked?, note?}}}}}
-  - atv 份动作 = pyatv 动作 + 特例(__POWER__/__LAUNCH__:...)（小写）
+  - atv 份动作 = pyatv 动作 + 特例(__POWER__/__LAUNCH__:.../TARGET:SWITCH)（小写）
   - mac/win 份动作 = 键盘动作（大写: ENTER/ESC/UP/DOWN/LEFT/RIGHT/SPACE/TAB/BACKSPACE/
-    PAGEUP/PAGEDOWN/FOCUS_INPUT/CLICK）
+    PAGEUP/PAGEDOWN/FOCUS_INPUT/CLICK/MOUSE:TOGGLE/TARGET:SWITCH）
     + 应用动作（APP:TOGGLE / APP:NEXT / APP:CYCLE / APP:PICK / APP:CLOSE / APP:<名称>, 见上说明）
     + 一次触发动作（URL:<网址> / RUN:<命令>, v2.10; 仅 DOWN 触发）
     · 长按自 v2.3 支持（voice_fwd v2.3 执行）; v2.4 长按列可选「⟳ 按住连发」（=repeat 连发）;
-      双击仍不支持（置空）; 语音键 63 锁定
+      双击仍不支持（置空）; 语音键 63: atv 份可配置（v2.15 解锁, 默认「打开 YouTube」）,
+      mac/win 份锁定（按住说话语音输入, 不参与键位映射）
 状态交换均为文件（voice_target / keymap.json），读端为 relay_min.py 与 voice_fwd.py，
 本服务崩溃不影响遥控/语音链路；反之亦然。
 安全：局域网内无鉴权（与现有链路一致），勿暴露到公网。
@@ -97,12 +120,15 @@ TARGETS = ("atv", "mac", "win")
 # ---------- 动作清单（下拉 & 服务端校验；与 relay_min.py / voice_fwd.py 分派一致） ----------
 ATV_STANDARD = ["up", "down", "left", "right", "select", "menu", "home", "home_hold",
                 "volume_up", "volume_down", "skip_forward", "skip_backward"]
-ATV_SPECIAL = ["__PLAY_PAUSE__", "__APP_SWITCH__", "__POWER__"]
+ATV_SPECIAL = ["__PLAY_PAUSE__", "__APP_SWITCH__", "__POWER__", "TARGET:SWITCH"]
 LAUNCH_PREFIX = "__LAUNCH__:"
 KB_ACTIONS = ["ENTER", "ESC", "UP", "DOWN", "LEFT", "RIGHT", "SPACE", "TAB", "BACKSPACE",
-              "PAGEUP", "PAGEDOWN", "FOCUS_INPUT", "CLICK"]
+              "PAGEUP", "PAGEDOWN", "FOCUS_INPUT", "CLICK", "MOUSE:TOGGLE", "TARGET:SWITCH"]
 # v2.5: +FOCUS_INPUT=跳输入框（key_bridge v1.8）; v2.6: +CLICK=点击焦点元素（v1.9）;
-# v2.8: +PAGEUP/PAGEDOWN=翻页（key_bridge v1.10）
+# v2.8: +PAGEUP/PAGEDOWN=翻页（key_bridge v1.10）; v2.13: +MOUSE:TOGGLE=鼠标模式开关
+# （voice_fwd v2.5 模式层本地消化——不转发; 生产绑定 #41 长按）;
+# v2.14: +TARGET:SWITCH=电源连击切换设备（voice_fwd v2.7 / relay v0.11 本地消化——
+# 仅绑 #116 单击有意义; 绑其它键时被明确忽略并记日志）
 # v2.1: mac/win 的「应用动作」前缀 —— 由 Mac key_bridge v1.5 经 app_switch 工具执行
 # （APP:TOGGLE=最近两应用间跳; APP:NEXT=名称序循环; APP:CYCLE=全应用轮询〔主页键生产绑定〕;
 #   APP:<名称|bundleID>=打开/切换到该应用）
@@ -130,7 +156,8 @@ ATV_CHOICES = [
     ["__APP_SWITCH__", "应用切换器"],
     ["volume_up", "音量+"], ["volume_down", "音量-"],
     ["skip_forward", "快进"], ["skip_backward", "快退"],
-    ["__POWER__", "电源切换"],
+    ["__POWER__", "电源切换（立即，无连击）"],
+    ["TARGET:SWITCH", "★ 电源（连击切设备：1 击=电视电源 · 2 击=Mac · 3 击=Windows）"],
     [LAUNCH_PREFIX + "com.zentraedi.zspaceTV", "打开极空间"],
     [LAUNCH_PREFIX + "com.google.ios.youtube", "打开 YouTube"],
 ]
@@ -144,6 +171,8 @@ KB_CHOICES = [
     ["SPACE", "空格"], ["TAB", "Tab"], ["BACKSPACE", "退格"],
     ["FOCUS_INPUT", "★ 跳转输入框（聚焦输入框 · 修复失焦）"],
     ["CLICK", "★ 点击（激活当前焦点元素 · 任务/列表项）"],
+    ["MOUSE:TOGGLE", "★ 鼠标模式开/关（长按直播; 方向=移光标 · OK=点击 · 音量=滚动）"],
+    ["TARGET:SWITCH", "★ 电源（连击切设备：1 击=ATV · 2 击=Mac · 3 击=Windows; 长按=关闭应用）"],
     ["PAGEUP", "★ 上一页（PageUp）"],
     ["PAGEDOWN", "★ 下一页（PageDown）"],
     ["APP:CYCLE", "★ 切换应用 · 全部轮询（连按依次遍历）"],
@@ -176,6 +205,27 @@ def read_target():
         return t if t in TARGETS else "mac"
     except Exception:  # noqa: BLE001
         return "mac"
+
+
+def read_presence_snapshot():
+    """v2.16: 设备在线快照（主页状态条数据源）。
+    降级安全: presence 模块不可用 / 快照缺失 / 过期 / 损坏 → available=False（页面显示未知）。"""
+    try:
+        import presence as _p
+        snap = _p.read_state(os.path.join(HERE, "state", "presence.json"))
+    except Exception as e:  # noqa: BLE001
+        return {"available": False, "devices": {}, "error": repr(e)}
+    if not snap:
+        return {"available": False, "devices": {}}
+    now = time.time()
+    devs = {}
+    for role in ("atv", "mac", "win"):      # 固定展示三设备
+        d = (snap.get("devices") or {}).get(role) or {}
+        if not d:
+            continue
+        devs[role] = {"state": d.get("state") or "unknown", "ip": d.get("ip"),
+                      "age": round(now - float(d.get("last_seen") or 0), 1)}
+    return {"available": True, "devices": devs}
 
 
 def write_target(t):
@@ -374,6 +424,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE_KEYMAP, "text/html; charset=utf-8")
         elif path == "/api/state":
             self._json(200, {"voice_target": read_target()})
+        elif path == "/api/presence":
+            self._json(200, read_presence_snapshot())
         elif path == "/api/keymap":
             self._json(200, {"cfg": read_cfg_safe(), "rev": calc_rev(), "choices": CHOICES_BY_TARGET,
                              "order": KEY_ORDER, "repeat_opt": REPEAT_OPT})
@@ -447,6 +499,13 @@ h1 { font-size:22px; margin:4px 0 2px; }
 .card.active { border-color:var(--acc); background:#16233a; }
 .card.active b::after { content:" ● 当前"; color:var(--acc); font-size:12px; font-weight:600; margin-left:8px; }
 .state { color:var(--dim); font-size:13px; margin-top:16px; min-height:20px; }
+.devbar { display:flex; gap:10px 16px; flex-wrap:wrap; align-items:center; margin:16px 0 0;
+  padding:11px 14px; background:var(--panel); border-radius:12px; font-size:13px; color:var(--dim); }
+.devbar .dev { display:inline-flex; align-items:center; }
+.dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; background:#6b7280; }
+.dot.online { background:var(--ok); box-shadow:0 0 6px rgba(34,197,94,.45); }
+.dot.offline { background:#6b7280; }
+.dot.unknown { background:var(--warn); }
 .foot { position:fixed; left:16px; right:16px; bottom:16px; }
 .foot a { display:block; text-align:center; background:var(--panel2); color:var(--fg); padding:14px;
   border-radius:12px; text-decoration:none; font-size:15px; }
@@ -491,6 +550,7 @@ PAGE_HOME = """<!DOCTYPE html>
   <button class="card" data-t="win"><b>Windows</b><span>语音键 = 语音输入 · 键位同 Mac</span></button>
 </div>
 <p class="state" id="state">加载中…</p>
+<div class="devbar" id="devbar"><span class="dev">设备状态加载中…</span></div>
 <div class="foot"><a href="/keymap">按键配置（三目标）</a></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -520,7 +580,22 @@ document.querySelectorAll('.card').forEach(el => el.addEventListener('click', as
     else toast('失败：' + (r.error || ''));
   } catch (e) { toast('请求失败'); }
 }));
+async function refreshPresence() {
+  const el = document.getElementById('devbar');
+  try {
+    const p = await (await fetch('/api/presence')).json();
+    if (!p.available) { el.innerHTML = '<span class="dev"><span class="dot unknown"></span>设备状态未知（presence 未运行）</span>'; return; }
+    const order = ['atv','mac','win'];
+    el.innerHTML = order.map(r => {
+      const d = p.devices[r] || { state:'unknown' };
+      const st = ['online','offline','unknown'].indexOf(d.state) >= 0 ? d.state : 'unknown';
+      const label = st === 'online' ? '在线' : st === 'offline' ? ('离线 ' + Math.round(d.age || 0) + 's') : '未知';
+      return '<span class="dev"><span class="dot ' + st + '"></span>' + NAMES[r] + ' ' + label + '</span>';
+    }).join('');
+  } catch (e) { el.innerHTML = '<span class="dev"><span class="dot unknown"></span>设备状态读取失败</span>'; }
+}
 refresh(); setInterval(refresh, 5000);
+refreshPresence(); setInterval(refreshPresence, 3000);
 </script>
 </body>
 </html>
@@ -564,6 +639,7 @@ function esc(s) {
 }
 function extLabel(v) {
   return v === 'APP:CLOSE' ? '关闭当前应用（长按电源键）'
+    : v === 'TARGET:SWITCH' ? '★ 电源（连击切设备）'
     : v.startsWith('APP:') ? '打开/切换到 ' + v.slice(4)
     : v.startsWith('URL:') ? '打开网页 ' + v.slice(4)
     : v.startsWith('RUN:') ? '执行 ' + v.slice(4) : v;
@@ -697,7 +773,7 @@ PAGE_KEYMAP = PAGE_KEYMAP.replace("%%CSS%%", CSS)
 
 def main():
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    log(f"t1_webui v2.11 启动: http://0.0.0.0:{PORT}/ (voice_target={read_target()})")
+    log(f"t1_webui v2.16 启动: http://0.0.0.0:{PORT}/ (voice_target={read_target()})")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

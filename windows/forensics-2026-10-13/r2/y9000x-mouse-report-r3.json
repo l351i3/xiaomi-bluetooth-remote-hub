@@ -1,0 +1,48 @@
+{
+  "version": "1.13",
+  "time": "2026-10-13 14:26:35",
+  "counts": {
+    "MOUSE:MODE:ON": 1,
+    "MOUSE:MODE:OFF": 1
+  },
+  "click_ok": 0,
+  "click_fail": 0,
+  "last": [
+    {
+      "t": "2026-10-13 14:26:28",
+      "a": "MOUSE:MODE:ON",
+      "r": "mode hud on (tk)"
+    },
+    {
+      "t": "2026-10-13 14:26:30",
+      "a": "MOUSE:MODE:OFF",
+      "r": "mode hud off (tk)"
+    }
+  ],
+  "cursor": [
+    1097,
+    1078
+  ],
+  "bounds": [
+    0,
+    0,
+    1920,
+    1080
+  ],
+  "foreground": {
+    "hwnd": 984138,
+    "rect": [
+      1,
+      1,
+      1919,
+      1007
+    ],
+    "exe_key": "explorer.exe"
+  },
+  "glide_busy": false,
+  "glide_speed": 0.0,
+  "tk_thread": "alive",
+  "input_class_module": "win_actions",
+  "sendinput_probe": "ok(1)",
+  "probe_last_error": 183
+}

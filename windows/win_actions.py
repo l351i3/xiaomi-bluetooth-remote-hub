@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-win_actions.py — Windows 遥控扩展动作 v1.10 (2026-10-12)
+win_actions.py — Windows 遥控扩展动作 v1.14 (2026-10-13)
 =======================================================
 为 win_receiver v1.2+ 提供三类「Mac 对等」扩展动作（Mac 端参照:
 key_bridge.py / app_switch.swift / hammerspoon/remotehub_focus.lua）:
@@ -23,6 +23,81 @@ key_bridge.py / app_switch.swift / hammerspoon/remotehub_focus.lua）:
   URL:<网址>    打开网页 —— startfile 拉起默认浏览器（仅 DOWN; 0.6s 防抖）
   RUN:<命令>    执行命令 —— cmd /c（仅 DOWN; 0.6s 防抖; 值不含空格——UDP 协议约束,
                含空格命令请写成脚本/批处理文件后填其路径）
+  MOUSE:*      鼠标模式（v1.11, 由 win_receiver 专用路由直调 mouse_control —— 不走
+               扩展动作 down-only 管道; TARGET:SWITCH 同此路由）:
+               MOUSE:MOVE:UP|DOWN|LEFT|RIGHT  滑行移动（按住=连续滑; 补发保活刷新）
+               MOUSE:SCROLL:UP|DOWN           连续滚动（按住=连续滚）
+               MOUSE:LCLICK / MOUSE:RCLICK    当前位置点击（左/右; 仅 DOWN）
+               MOUSE:MODE:ON|OFF              模式提示 HUD（v1.12; 仅 DOWN）
+               MOUSE:REPORT                   写取证报告 state/mouse-report.json（v1.12; 仅 DOWN）
+               TARGET:SWITCH:ATV|MAC|WIN      设备切换提示 HUD（v1.14; 仅 DOWN ——
+               复用 v1.12 HUD 体系: 「🎯 已切到 X」1.1s 浮层; 来源 = T1 电源键连击, 见下）
+               引擎 = MouseGlide 滑行积分器（纯逻辑可测）: 加速 700px/s² / 上限
+               1600px/s / 多方向叠加（斜向 √2 速, 对齐 Mac lua）/ 1.2s 无刷新看门狗
+               自停（保活断流即刹车）/ 虚拟屏包围盒夹取。60Hz 常驻推进线程（懒启动）。
+               Mac 对等 = key_bridge v1.15 + remotehub_focus.lua v1.5（参数两端一致）。
+
+v1.15 变更（2026-10-14，FOCUS_INPUT 兜底点击 —— 承用户反馈「焦点聚焦键不灵」，双端对齐）：
+  · focus_input_strategy 五段全败（NOEDIT, 即微信等无 UIA 内容层的应用）时, 不再直接
+    报错——新增「底部中央兜底点击」(0.5, 0.92 —— 聊天/评论类输入区几何假设), 结果串
+    "NOEDIT+CLICK@x,y"。点击保持光标位置（先存后恢复, 遥控场景不打扰用户鼠标）。
+    实现: 策略函数新增 click_at 注入参数（None=旧行为; 生产传 _click_preserve_cursor,
+    离线测试打桩）—— 既有 NOEDIT 断言向后兼容（默认不起兜底）。
+  · do_focus_input 结果串追加 app=<exe_key>（前台应用可观测性——排障直达）。
+  · 配套: T1 voice_fwd v2.8（鼠标模式内 #41 放行, 键盘/鼠标模式均可达本兜底）/
+    Mac remotehub_focus.lua v1.5（同款兜底点击）。
+  · 背景（10-14 凌晨实测）: 微信（Mac 无 AX / Win 无 UIA 内容层）两端的五段策略都空转;
+    用户场景（微信聊天）按 #41 无可见效果 = 「不灵」的全部真相。
+
+v1.14 变更（2026-10-13，电源键连击切换设备 —— 用户需求; 配套 key_bridge v1.15 / lua v1.4）：
+  · 新增 TARGET:SWITCH:ATV|MAC|WIN（仅 DOWN）—— 设备切换提示 HUD。来源: T1 电源键连击
+    （voice_fwd v2.7 / relay_min v0.11; 1 击=ATV / 2 击=Mac / 3 击=Win; 切到 atv 时本包
+    发往「旧目标端」= 本机, 切到 win 时发往本机——两种情形本机均可见提示）。
+  · 走 win_receiver v1.10 专用路由直呼 mouse_control（同 MOUSE:* 通道; 不占扩展
+    down-only 管道, 无防抖——每次切换恰发一条, 重发幂等）。
+  · UI = 「🎯 已切到 ATV/macOS/Windows」1.1s 自动消失浮层（复用 picker 常驻 Tk 线程;
+    v1.12 _hud_open 抽出通用 _hud_open_text(txt) 与 MOUSE:MODE 共用; 失败静默降级
+    no-tk——切换本体在 T1 侧落盘, HUD 仅提示）。
+
+v1.13 变更（2026-10-13，★ 元凶级修复：跨模块 SendInput 类型冲突 —— 治「OK 键完全无反应」）：
+  · 根因（MOUSE:REPORT 探针实锤）: ctypes.windll.user32 是进程级共享对象; 本模块与
+    win_receiver 各自定义 INPUT 结构类并各自设置 SendInput.argtypes（后声明者覆盖）。
+    两套类不同一 → 本模块全部 SendInput 调用（mouse_button_click / mouse_click /
+    _send_wheel / _send_alt_tap）抛「TypeError: expected LP_INPUT instance instead
+    of pointer to INPUT」被 except 吞掉 → 鼠标点击/滚轮静默全灭。键盘正常的原因:
+    win_receiver.send_vk 用的是它自己的类（与最终 argtypes 同型）—— 这就是
+    「鼠标能滑行（走 SetCursorPos）、键盘可用, 唯独点击毫无反应」之谜的全部真相。
+  · 修复: ULONG_PTR / MOUSEINPUT / KEYBDINPUT / HARDWAREINPUT / _INPUTUNION / INPUT
+    定义上移至通用层（跨平台）; win_receiver v1.9 直接复用本模块的类 → 全进程单一
+    类对象, 两模块的 argtypes 声明与调用全部同型。
+  · 加固: mouse_click / mouse_button_click / _send_wheel / _send_alt_tap 的 except
+    补 _logv 落盘（静默吞异常曾让此根因隐藏数周; 今后同类问题在 receiver.log 直达）;
+    MOUSE:REPORT 增 input_class_module 字段（= 当前 INPUT 类的归属模块, 修复后应恒为
+    "win_actions"——可作为升级验证的常驻指纹）。
+  · 连带纠正: force_foreground 注释「实测 Alt 敲击无效」实为此 bug（_send_alt_tap
+    的 SendInput 一直 TypeError 被静默吞）—— 修复后 Alt tap 恢复, 前台锁定多一条解锁手段。
+
+v1.12 变更（2026-10-13，实测反馈修复轮 —— 用户首测五问之四/五 + 模式提示）：
+  · ★ 滑行速度修复（治「鼠标能动但特别快, 根本没办法小距离移动」）：MouseGlide
+    速度改事件驱动清零（stop()/_sweep() 里 moves 空即 speed=0, 对齐 Mac lua stopTimer
+    语义）。根因: 遥控器方向键是「按下→松开」离散流, up 间隙（~90ms+）内 60Hz worker
+    因 busy()=False 直接 continue 不调 step(), 而 step() 是旧版唯一的 speed 清零点
+    → 速度跨按压累积, 按住 1s 即到 ~1050px/s, 几次后顶满 1600px/s（Mac 侧无此
+    现象 = "Windows 特别快"的根因）。
+  · 新增 MOUSE:MODE:ON|OFF（模式提示 HUD）—— 复用 picker 常驻 Tk 线程弹「鼠标模式/
+    键盘模式」大浮层（1.1s 自动消失 + 开/关区分系统提示音; Tk 线程不可用时静默降级）。
+  · 新增 MOUSE:REPORT（取证报告）—— 写 state/mouse-report.json（版本/命令计数/最近
+    60 条命令/SendInput 无害探针/前台窗口/光标/显示器/Tk 线程状态）; 配合 RUN 通道
+    回传, 零用户操作定位「OK 键无反应」（win_receiver 逐条落盘 click ok/FAIL）。
+  · mouse_control 全量取证: _mouse_stat（计数 + 最近 60 条 + click_ok/click_fail）。
+
+v1.11 变更（2026-10-13，鼠标模式 —— 遥控器 dpad 模拟鼠标, 用户需求）：
+  · 新增 MouseGlide（策略层滑行积分器, 纯逻辑离线可测）+ mouse_control 分发入口
+    （win_receiver v1.7 handle_mouse 调用; MOVE/SCROLL 双向 hold 语义）。
+  · 新增 mouse_button_click（当前位置左/右键 SendInput; 不移动光标）+ _send_wheel
+    （WHEEL_DELTA=120/notch, SCROLL_NPS=10 notch/s 对齐 Mac 900px/s 观感）。
+  · 常量与 Mac 完全一致: MOUSE_ACCEL=700 / MOUSE_MAX=1600 / MOUSE_STALE=1.2 /
+    MOUSE_TICK=1/60。展开常数不归一化（斜向 √2 速——与 lua 实装逐条对齐）。
 
 v1.10 变更（2026-10-12，长按电源键「关闭当前应用」—— 用户需求, Mac + Windows 双端对等）：
   · 新增 APP:CLOSE（生产绑定 = keymap #116 电源键 long）—— 对齐 Mac（app_switch v1.2 close =
@@ -161,7 +236,7 @@ import threading
 import time
 from ctypes import wintypes as wt
 
-VERSION = "1.10"
+VERSION = "1.15"
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = os.path.join(HERE, "state")
 IS_WIN = (os.name == "nt")
@@ -197,6 +272,38 @@ SHELL_CLASSES = {
     "Windows.Internal.Shell.TabProxyWindow",       # Win11 小组件桥
 }
 
+# ---- SendInput 结构定义（v1.13: 移至通用层, 跨平台可定义 —— 与 win_receiver 共用
+#      单一类对象。★ 元凶级修复 2026-10-13: ctypes.windll.user32 是进程级共享对象,
+#      此前本模块与 win_receiver 各定义一套 INPUT 类并各自设置 SendInput.argtypes
+#      （后加载的 win_receiver 覆盖）→ 本模块 SendInput 调用因跨类指针被 ctypes 拒绝,
+#      抛 TypeError 被 except 吞 → 鼠标点击/滚轮全部静默失败（MOUSE:REPORT 探针实锤:
+#      "argument 2: TypeError: expected LP_INPUT instance instead of pointer to
+#      INPUT"）。修复后 win_receiver 直接复用本定义 —— 全进程单类, 类型全通。）
+ULONG_PTR = ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
+
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [("dx", wt.LONG), ("dy", wt.LONG), ("mouseData", wt.DWORD),
+                ("dwFlags", wt.DWORD), ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
+
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [("wVk", wt.WORD), ("wScan", wt.WORD), ("dwFlags", wt.DWORD),
+                ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
+
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [("uMsg", wt.DWORD), ("wParamL", wt.WORD), ("wParamH", wt.WORD)]
+
+
+class _INPUTUNION(ctypes.Union):
+    _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT)]
+
+
+class INPUT(ctypes.Structure):
+    _fields_ = [("type", wt.DWORD), ("u", _INPUTUNION)]
+
+
 if IS_WIN:
     _user32 = ctypes.windll.user32
     _kernel32 = ctypes.windll.kernel32
@@ -214,7 +321,6 @@ if IS_WIN:
     except Exception:
         _version = None
 
-    ULONG_PTR = ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
     WNDENUMPROC = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
 
     class GUITHREADINFO(ctypes.Structure):
@@ -223,23 +329,6 @@ if IS_WIN:
                     ("hwndCapture", wt.HWND), ("hwndMenuOwner", wt.HWND),
                     ("hwndMoveSize", wt.HWND), ("hwndCaret", wt.HWND),
                     ("rcCaret", wt.RECT)]
-
-    class MOUSEINPUT(ctypes.Structure):
-        _fields_ = [("dx", wt.LONG), ("dy", wt.LONG), ("mouseData", wt.DWORD),
-                    ("dwFlags", wt.DWORD), ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
-
-    class KEYBDINPUT(ctypes.Structure):
-        _fields_ = [("wVk", wt.WORD), ("wScan", wt.WORD), ("dwFlags", wt.DWORD),
-                    ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
-
-    class HARDWAREINPUT(ctypes.Structure):
-        _fields_ = [("uMsg", wt.DWORD), ("wParamL", wt.WORD), ("wParamH", wt.WORD)]
-
-    class _INPUTUNION(ctypes.Union):
-        _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT)]
-
-    class INPUT(ctypes.Structure):
-        _fields_ = [("type", wt.DWORD), ("u", _INPUTUNION)]
 
     # --- v1.3: 图标 / DIB / 显示器信息 ---
     class ICONINFO(ctypes.Structure):
@@ -600,8 +689,8 @@ def _send_alt_tap():
         inp.u.ki.dwExtraInfo = 0
         try:
             _user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001  v1.13: 不再静默吞（曾致「Alt 敲击无效」误判）
+            _logv("_send_alt_tap error: %s" % e)
 
 
 def force_foreground(hwnd):
@@ -665,7 +754,8 @@ def mouse_click(x, y):
             if pause:
                 time.sleep(pause)
         return ok
-    except Exception:
+    except Exception as e:  # noqa: BLE001  v1.13: 不再静默吞（曾掩盖跨模块 SendInput bug 数周）
+        _logv("mouse_click error: %s" % e)
         return False
 
 
@@ -687,6 +777,422 @@ def foreground_ctx():
                 "exe_key": exe.lower()}
     except Exception:
         return None
+
+
+# ================================================================
+# v1.11: 鼠标模式（滑行引擎 —— 对齐 Mac remotehub_focus.lua v1.2 逐参数）
+# ================================================================
+MOUSE_ACCEL = 700.0        # 线性加速度 px/s²
+MOUSE_MAX = 1600.0         # 速度上限 px/s
+MOUSE_TICK = 1.0 / 60      # 推进周期
+MOUSE_STALE = 1.2          # 方向无刷新超时（秒）—— 保活断流即自停
+SCROLL_NPS = 10.0          # 滚动速度 notch/秒（WHEEL_DELTA=120; 对齐 Mac 900px/s 观感）
+WHEEL_DELTA = 120
+
+MOUSE_VEC = {"UP": (0, -1), "DOWN": (0, 1), "LEFT": (-1, 0), "RIGHT": (1, 0)}
+
+SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN = 76, 77
+SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN = 78, 79
+
+
+class MouseGlide:
+    """v1.11 策略层: 滑行积分器（纯逻辑, 离线可测）。
+
+    语义: MOVE/SCROLL 均为「按住」—— start(dir) 记录/刷新时间戳（重复 start = 保活）,
+    stop(dir) 移除。多方向叠加不归一化（斜向 √2 速, 对齐 lua）; 对向相消。
+    看门狗: 超过 MOUSE_STALE 无刷新的方向在 step/busy 时自动清除（up 丢包兜底刹车）。
+    """
+
+    def __init__(self):
+        self.moves = {}        # D -> last refresh monotonic
+        self.scrolls = {}      # D -> last refresh monotonic
+        self.speed = 0.0
+        self.scroll_accum = 0.0
+
+    def start(self, kind, d, now):
+        (self.moves if kind == "move" else self.scrolls)[d] = now
+        return True
+
+    def stop(self, kind, d):
+        (self.moves if kind == "move" else self.scrolls).pop(d, None)
+        # v1.12: ★ 事件驱动清零（对齐 Mac lua stopTimer 的 S.speed=0）—— 治
+        # 「越按越快/无法小距离移动」: 旧版唯一清零点在 step(), 而 up 间隙内
+        # worker 因 busy()=False 不调 step() -> 速度跨按压累积到上限。
+        if not self.moves:
+            self.speed = 0.0
+        if not self.scrolls:
+            self.scroll_accum = 0.0
+        return True
+
+    def stop_all(self):
+        self.moves.clear()
+        self.scrolls.clear()
+        self.speed = 0.0
+        self.scroll_accum = 0.0
+
+    def _sweep(self, now):
+        for d in [d for d, ts in self.moves.items() if now - ts > MOUSE_STALE]:
+            del self.moves[d]
+        for d in [d for d, ts in self.scrolls.items() if now - ts > MOUSE_STALE]:
+            del self.scrolls[d]
+        # v1.12: 看门狗扫除后同步清零（UP 丢包场景防速度泄漏到下一次按压）
+        if not self.moves:
+            self.speed = 0.0
+        if not self.scrolls:
+            self.scroll_accum = 0.0
+
+    def busy(self, now):
+        self._sweep(now)
+        return bool(self.moves or self.scrolls)
+
+    def step(self, now, cur, bounds):
+        """推进一格。返回 ((nx, ny) 或 None, wheel_notches 或 None)。
+        cur=(x,y) 当前光标; bounds=(minx, miny, maxx, maxy) 虚拟屏包围盒（max 排他）。"""
+        self._sweep(now)
+        npos = None
+        if self.moves:
+            self.speed = min(MOUSE_MAX, self.speed + MOUSE_ACCEL * MOUSE_TICK)
+            vx = sum(MOUSE_VEC[d][0] for d in self.moves)
+            vy = sum(MOUSE_VEC[d][1] for d in self.moves)
+            minx, miny, maxx, maxy = bounds
+            nx = max(minx + 1, min(maxx - 2, cur[0] + vx * self.speed * MOUSE_TICK))
+            ny = max(miny + 1, min(maxy - 2, cur[1] + vy * self.speed * MOUSE_TICK))
+            npos = (nx, ny)
+        else:
+            self.speed = 0.0
+        wheel = None
+        if self.scrolls:
+            dy = 0.0
+            if "UP" in self.scrolls:
+                dy += 1.0
+            if "DOWN" in self.scrolls:
+                dy -= 1.0
+            if dy:
+                self.scroll_accum += dy * SCROLL_NPS * MOUSE_TICK
+                n = int(self.scroll_accum)
+                if n:
+                    self.scroll_accum -= n
+                    wheel = n
+        return npos, wheel
+
+
+def _get_cursor_pos():
+    if not IS_WIN:
+        return None
+    try:
+        pt = wt.POINT()
+        if _user32.GetCursorPos(ctypes.byref(pt)):
+            return (pt.x, pt.y)
+    except Exception:
+        pass
+    return None
+
+
+def _set_cursor_pos(x, y):
+    if not IS_WIN:
+        return False
+    try:
+        return bool(_user32.SetCursorPos(int(x), int(y)))
+    except Exception:
+        return False
+
+
+def _screen_bounds():
+    """虚拟屏包围盒 (minx, miny, maxx, maxy)（max 排他, 对齐 lua fullFrame 语义）。"""
+    if not IS_WIN:
+        return (0, 0, 2560, 1440)
+    try:
+        x = _user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+        y = _user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+        w = _user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+        h = _user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+        if w > 0 and h > 0:
+            return (x, y, x + w, y + h)
+    except Exception:
+        pass
+    return (0, 0, 2560, 1440)
+
+
+def _send_wheel(notches):
+    """滚轮 SendInput; notches>0 = 向上滚（WHEEL_DELTA=120/notch）。"""
+    if not IS_WIN:
+        return False
+    ok = True
+    try:
+        for _ in range(abs(int(notches))):
+            inp = INPUT()
+            inp.type = 0                                   # INPUT_MOUSE
+            inp.u.mi.dx = 0
+            inp.u.mi.dy = 0
+            inp.u.mi.mouseData = (WHEEL_DELTA if notches > 0 else -WHEEL_DELTA) & 0xFFFFFFFF
+            inp.u.mi.dwFlags = 0x0800                      # MOUSEEVENTF_WHEEL
+            inp.u.mi.time = 0
+            inp.u.mi.dwExtraInfo = 0
+            ok = (_user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) == 1) and ok
+    except Exception as e:  # noqa: BLE001  v1.13: 不再静默吞（同 mouse_button_click）
+        _logv("_send_wheel error: %s" % e)
+        return False
+    return ok
+
+
+def mouse_button_click(button="left"):
+    """v1.11: 当前位置点击（不移动光标, 对齐 Mac mouseClick）; button=left|right。"""
+    if not IS_WIN:
+        return False
+    try:
+        down, up = (0x0008, 0x0010) if button == "right" else (0x0002, 0x0004)
+        ok = True
+        for flag, pause in ((down, 0.02), (up, 0.0)):
+            inp = INPUT()
+            inp.type = 0
+            inp.u.mi.dx = 0
+            inp.u.mi.dy = 0
+            inp.u.mi.mouseData = 0
+            inp.u.mi.dwFlags = flag
+            inp.u.mi.time = 0
+            inp.u.mi.dwExtraInfo = 0
+            ok = (_user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) == 1) and ok
+            if pause:
+                time.sleep(pause)
+        return ok
+    except Exception as e:  # noqa: BLE001  v1.13: 不再静默吞（曾致 OK 键「FAIL」且无踪可查）
+        _logv("mouse_button_click error: %s" % e)
+        return False
+
+
+_glide = MouseGlide()
+_glide_lock = threading.Lock()
+_glide_thread = None
+
+
+def _ensure_glide_thread():
+    """懒启动 60Hz 推进线程（常驻 daemon; 空闲 tick 仅 µs 级）。"""
+    global _glide_thread
+    if not IS_WIN:
+        return
+    t = _glide_thread
+    if t is not None and t.is_alive():
+        return
+    _glide_thread = threading.Thread(target=_glide_worker, daemon=True, name="mouse-glide")
+    _glide_thread.start()
+
+
+def _glide_worker():
+    while True:
+        time.sleep(MOUSE_TICK)
+        try:
+            now = time.monotonic()
+            with _glide_lock:
+                if not _glide.busy(now):
+                    continue
+            cur = _get_cursor_pos()
+            if cur is None:
+                continue
+            with _glide_lock:
+                npos, wheel = _glide.step(now, cur, _screen_bounds())
+            if npos is not None and npos != cur:
+                _set_cursor_pos(npos[0], npos[1])
+            if wheel:
+                _send_wheel(wheel)
+        except Exception as e:
+            _logv("mouse glide error: %s" % e)
+
+
+_mouse_stat = {"counts": {}, "last": [], "click_ok": 0, "click_fail": 0}
+
+
+def _mouse_stat_bump(action, result):
+    """v1.12: 鼠标命令取证统计（计数 + 最近 60 条; 供 MOUSE:REPORT 落盘）。"""
+    try:
+        c = _mouse_stat
+        a = (action or "?").upper()
+        c["counts"][a] = c["counts"].get(a, 0) + 1
+        c["last"].append({"t": time.strftime("%F %T"), "a": a,
+                          "r": (result or "")[:120]})
+        if len(c["last"]) > 60:
+            del c["last"][:len(c["last"]) - 60]
+        if a in ("MOUSE:LCLICK", "MOUSE:RCLICK"):
+            r = result or ""
+            if r.endswith("ok"):
+                c["click_ok"] += 1
+            elif ("FAIL" in r) or ("EXC" in r):
+                c["click_fail"] += 1
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def mouse_control(action, phase):
+    """v1.12: 取证包裹（计数 + ok/FAIL 分类）—— 原实现 = _mouse_control_impl。"""
+    try:
+        res = _mouse_control_impl(action, phase)
+    except Exception as e:  # noqa: BLE001
+        res = "EXC %s" % e
+        _logv("mouse_control error: %s" % e)
+    _mouse_stat_bump(action, res)
+    return res
+
+
+def _mouse_control_impl(action, phase):
+    """v1.11: MOUSE:* 动作入口（win_receiver 专用路由调用; 收包线程直呼）。
+    MOVE/SCROLL = 按住语义（DOWN 启动/保活刷新, UP 停止）; LCLICK/RCLICK 仅 DOWN。
+    返回详情字符串（进日志）。"""
+    a = (action or "").upper()
+    ph = (phase or "").upper()
+    now = time.monotonic()
+    if a.startswith("MOUSE:MOVE:"):
+        d = a.rsplit(":", 1)[-1]
+        if d not in MOUSE_VEC:
+            return "ERR bad-dir %s" % action
+        with _glide_lock:
+            if ph == "DOWN":
+                _glide.start("move", d, now)
+            else:
+                _glide.stop("move", d)
+        if ph == "DOWN":
+            _ensure_glide_thread()
+        return "move %s %s" % (d, "on" if ph == "DOWN" else "off")
+    if a.startswith("MOUSE:SCROLL:"):
+        d = a.rsplit(":", 1)[-1]
+        if d not in ("UP", "DOWN"):
+            return "ERR bad-scroll %s" % action
+        with _glide_lock:
+            if ph == "DOWN":
+                _glide.start("scroll", d, now)
+            else:
+                _glide.stop("scroll", d)
+        if ph == "DOWN":
+            _ensure_glide_thread()
+        return "scroll %s %s" % (d, "on" if ph == "DOWN" else "off")
+    if a == "MOUSE:LCLICK":
+        if ph != "DOWN":
+            return "lclick ignored (up)"
+        return "lclick %s" % ("ok" if mouse_button_click("left") else "FAIL")
+    if a == "MOUSE:RCLICK":
+        if ph != "DOWN":
+            return "rclick ignored (up)"
+        return "rclick %s" % ("ok" if mouse_button_click("right") else "FAIL")
+    if a in ("MOUSE:MODE:ON", "MOUSE:MODE:OFF"):      # v1.12: 模式提示 HUD（仅 DOWN）
+        if ph != "DOWN":
+            return "mode hint ignored (up)"
+        on = a.endswith("ON")
+        shown = _hud_show(on)
+        _hud_sound(on)
+        return "mode hud %s (%s)" % ("on" if on else "off", "tk" if shown else "no-tk")
+    if a.startswith("TARGET:SWITCH:"):                # v1.14: 设备切换 HUD（仅 DOWN）
+        if ph != "DOWN":
+            return "switch hud ignored (up)"
+        t = a.rsplit(":", 1)[-1].lower()
+        if t not in SWITCH_NAMES:
+            return "ERR bad-target %s" % action
+        shown = _switch_hud_show(t)
+        _hud_sound(True)
+        return "switch hud %s (%s)" % (t, "tk" if shown else "no-tk")
+    if a == "MOUSE:REPORT":                           # v1.12: 取证报告（仅 DOWN）
+        if ph != "DOWN":
+            return "report ignored (up)"
+        try:
+            return "report written: %s" % _mouse_report_write()
+        except Exception as e:  # noqa: BLE001
+            return "report FAIL: %s" % e
+    return "unknown mouse action: %s" % action
+
+
+def _hud_show(on):
+    """v1.12: 模式提示 HUD 入队（复用 picker 常驻 Tk 线程）。
+    返回 True=已入队; False=Tk 线程不可用（静默降级——提示缺失不影响模式本体）。"""
+    if not _pick_ensure_thread():
+        return False
+    try:
+        _pick_ctl["cmd_q"].put_nowait("hud:on" if on else "hud:off")
+        return True
+    except Exception as e:  # noqa: BLE001
+        _logv("hud enqueue failed: %s" % e)
+        return False
+
+
+def _hud_sound(on):
+    """v1.12: 模式切换提示音（系统声音, 开/关可辨; 失败静默）。"""
+    if not IS_WIN:
+        return
+    try:
+        import winsound
+        winsound.MessageBeep(winsound.MB_ICONASTERISK if on else winsound.MB_ICONEXCLAMATION)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# v1.14: 设备切换 HUD 名称表（key -> 显示名; 与 Mac remotehub_focus.lua v1.4 一致）
+SWITCH_NAMES = {"atv": "ATV", "mac": "macOS", "win": "Windows"}
+
+
+def _switch_hud_show(name):
+    """v1.14: 设备切换 HUD 入队（复用 picker 常驻 Tk 线程, 同 _hud_show 通道）。
+    返回 True=已入队; False=Tk 线程不可用（静默降级——仅提示缺失,
+    切换本体在 T1 侧落盘, 不受影响）。"""
+    if not _pick_ensure_thread():
+        return False
+    try:
+        _pick_ctl["cmd_q"].put_nowait("swhud:" + str(name))
+        return True
+    except Exception as e:  # noqa: BLE001
+        _logv("switch hud enqueue failed: %s" % e)
+        return False
+
+
+def _mouse_report_write():
+    """v1.12: 写鼠标取证报告 state/mouse-report.json（经 RUN 通道回传, 零用户操作）。
+    含: 版本/时间/命令计数/最近 60 条/click ok-fail 分类/SendInput 无害探针
+    （零位移 MOUSEEVENTF_MOVE, 不点击不移动——仅验证注入通道可用性）/前台窗口/
+    光标/虚拟屏包围盒/滑行状态/Tk 线程状态。"""
+    os.makedirs(STATE_DIR, exist_ok=True)
+    rep = {
+        "version": VERSION,
+        "time": time.strftime("%F %T"),
+        "counts": dict(_mouse_stat["counts"]),
+        "click_ok": _mouse_stat["click_ok"],
+        "click_fail": _mouse_stat["click_fail"],
+        "last": list(_mouse_stat["last"]),
+    }
+    try:
+        rep["cursor"] = _get_cursor_pos()
+        rep["bounds"] = _screen_bounds()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        rep["foreground"] = foreground_ctx()
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        rep["glide_busy"] = _glide.busy(time.monotonic())
+        rep["glide_speed"] = round(_glide.speed, 1)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        t = _pick_ctl.get("thread")
+        rep["tk_thread"] = ("alive" if (t is not None and t.is_alive())
+                            else ("failed" if _pick_ctl.get("failed") else "none"))
+    except Exception:  # noqa: BLE001
+        pass
+    if IS_WIN:
+        rep["input_class_module"] = getattr(INPUT, "__module__", "?")   # v1.13: 类归属指纹
+        try:
+            inp = INPUT()
+            inp.type = 0
+            inp.u.mi.dx = 0
+            inp.u.mi.dy = 0
+            inp.u.mi.mouseData = 0
+            inp.u.mi.dwFlags = 0x0001          # MOUSEEVENTF_MOVE（零位移探针）
+            inp.u.mi.time = 0
+            inp.u.mi.dwExtraInfo = 0
+            sent = _user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+            rep["sendinput_probe"] = "ok(1)" if sent == 1 else ("FAIL(%s)" % sent)
+            rep["probe_last_error"] = int(_kernel32.GetLastError())
+        except Exception as e:  # noqa: BLE001
+            rep["sendinput_probe"] = "EXC %s" % e
+    p = os.path.join(STATE_DIR, "mouse-report.json")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(rep, f, ensure_ascii=False, indent=2)
+    return p
 
 
 def fix_foreground_window():
@@ -914,10 +1420,11 @@ def click_strategy(uia, elem, click_at):
     return (False, "no-invoke-no-coord %s" % _label(uia, elem))
 
 
-def focus_input_strategy(uia, ctx, cache):
+def focus_input_strategy(uia, ctx, cache, click_at=None):
     """五阶段跳输入框（②③④⑤；① 窗口修复在 do_focus_input 内先行）。
     ctx:   {"hwnd","rect","exe_key"}
     cache: {exe_key: {"fx","fy"}}（命中不修改；由调用方在成功后持久化）
+    click_at: v1.15 兜底点击注入函数 (x, y) -> bool（None=不启用兜底; 测试打桩用）。
     返回 (ok, detail, rect_frac)；rect_frac = (fx, fy) 或 None。"""
     l, t, r, b = ctx["rect"]
     w, h = r - l, b - t
@@ -971,6 +1478,16 @@ def focus_input_strategy(uia, ctx, cache):
                     fy = max(0.05, min(0.95, (cy - t) / h))
 
     if elem is None:
+        # ★ v1.15 NOEDIT 兜底: 底部中央点击（(0.5, 0.92) —— 聊天/评论类输入区几何假设）。
+        #   微信等无 UIA 内容层的应用走不到缓存/网格/树, 坐标点击是唯一可用的聚焦手段。
+        if click_at is not None:
+            bx = l + int(w * 0.5)
+            by = t + int(h * 0.92)
+            if by > b - 4:
+                by = b - 4
+            if click_at(bx, by):
+                return (False, "NOEDIT+CLICK@%d,%d (未找到输入框, 已兜底点击)"
+                        % (bx, by), None)
         return (False, "NOEDIT (窗口已修复, 未找到输入框)", None)
 
     # ⑤ SetFocus + 读回
@@ -1280,6 +1797,15 @@ def do_click():
     return ("CLICK " if ok else "CLICK FAIL ") + detail
 
 
+def _click_preserve_cursor(x, y):
+    """v1.15: 兜底点击包装 —— 点击后恢复光标位置（遥控场景不打扰用户鼠标）。"""
+    old = _get_cursor_pos()
+    ok = mouse_click(x, y)
+    if old is not None:
+        _set_cursor_pos(old[0], old[1])
+    return ok
+
+
 def do_focus_input():
     uia = get_uia()
     if uia is None:
@@ -1289,12 +1815,13 @@ def do_focus_input():
     if ctx is None:
         return "FOCUS_INPUT FAIL no-foreground (winfix=%s)" % fix
     cache = _load_focus_cache()
-    ok, detail, frac = focus_input_strategy(uia, ctx, cache)
+    ok, detail, frac = focus_input_strategy(uia, ctx, cache,
+                                            click_at=_click_preserve_cursor)
     if ok and frac and frac[0] is not None and frac[1] is not None:
         cache[ctx["exe_key"]] = {"fx": round(float(frac[0]), 3),
                                  "fy": round(float(frac[1]), 3)}
         _save_focus_cache(cache)
-    return "FOCUS_INPUT %s [winfix=%s]" % (detail, fix)
+    return "FOCUS_INPUT %s [winfix=%s app=%s]" % (detail, fix, ctx["exe_key"])
 
 
 def _activate_key(key, apps):
@@ -2375,6 +2902,10 @@ def _pick_thread_main():
                 cmd = _pick_ctl["cmd_q"].get_nowait()
                 if cmd == "open":
                     _pick_open()
+                elif isinstance(cmd, str) and cmd.startswith("hud:"):   # v1.12: 模式提示
+                    _hud_open(cmd[4:] == "on")
+                elif isinstance(cmd, str) and cmd.startswith("swhud:"):  # v1.14: 设备切换
+                    _switch_hud_open(cmd[6:])
         except queue.Empty:
             pass
         except Exception as e:
@@ -2640,6 +3171,85 @@ def _pick_open():
         except Exception:
             pass
         _pick_reset_state()
+
+
+def _hud_open(on):
+    """v1.12: （Tk 线程内）模式提示浮层「鼠标模式 / 键盘模式」（v1.14: 渲染交由
+    _hud_open_text 共用 —— 与设备切换 HUD 同体系）。"""
+    _hud_open_text("鼠标模式" if on else "键盘模式")
+
+
+def _switch_hud_open(name):
+    """v1.14: （Tk 线程内）设备切换提示浮层 —— 「🎯 已切到 X」（复用通用 HUD）。"""
+    key = str(name or "").lower()
+    txt = "🎯 已切到 " + SWITCH_NAMES.get(key, key.upper() or "?")
+    _hud_open_text(txt)
+
+
+def _hud_open_text(txt):
+    """v1.12/v1.14: HUD 浮层通用实现 —— 深底大字 txt, 1.1s 自动消失; 连按时先
+    销毁旧浮层（closeAll 语义）; 全程异常静默。显示位置 = 光标所在显示器居中
+    （回退 Tk 主屏）。"""
+    import tkinter as tk
+    root = _pick_ctl.get("root")
+    if root is None:
+        return
+    try:
+        old = _pick_ctl.get("hud")
+        if old is not None:
+            try:
+                old.destroy()
+            except Exception:
+                pass
+            _pick_ctl["hud"] = None
+        win = tk.Toplevel(root)
+        win.overrideredirect(True)
+        win.configure(bg="#141414")
+        try:
+            win.attributes("-topmost", True)
+            win.attributes("-alpha", 0.88)
+        except Exception:
+            pass
+        try:
+            scale = float(root.winfo_fpixels("1i")) / 96.0
+        except Exception:
+            scale = 1.0
+        size = max(14, int(round(26 * scale)))
+        lbl = tk.Label(win, text=txt, bg="#141414", fg="#f5f5f5",
+                       font=("Microsoft YaHei UI", size, "bold"),
+                       padx=int(round(40 * scale)), pady=int(round(22 * scale)))
+        lbl.pack()
+        win.update_idletasks()
+        w, h = win.winfo_reqwidth(), win.winfo_reqheight()
+        # 多屏定位: 光标所在显示器工作区居中（物理像素; 与 picker v2.3 同源约定,
+        # 本进程 DPI per-monitor v2 —— Tk geometry 即物理像素, 不再做缩放换算）
+        rect = _picker_screen_rect()
+        if rect:
+            x = rect[0] + max(0, (rect[2] - w) // 2)
+            y = rect[1] + max(0, (rect[3] - h) // 2)
+        else:
+            sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+            x, y = max(0, (sw - w) // 2), max(0, (sh - h) // 2)
+        win.geometry("+%d+%d" % (x, y))
+        win.lift()
+        try:
+            win.attributes("-topmost", True)
+        except Exception:
+            pass
+        _pick_ctl["hud"] = win
+
+        def _hud_close():
+            try:
+                if _pick_ctl.get("hud") is win:
+                    _pick_ctl["hud"] = None
+                win.destroy()
+            except Exception:
+                pass
+
+        root.after(1100, _hud_close)
+        _logv("hud open: %s (%dx%d @%d,%d)" % (txt, w, h, x, y))
+    except Exception as e:  # noqa: BLE001
+        _logv("hud open failed: %s" % e)
 
 
 # ---------------------------------------------------------------- v1.2: URL / RUN

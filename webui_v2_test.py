@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""t1_webui v2.10 离线全量测试（临时目录副本起服务 :18765, 不碰生产配置）"""
+"""t1_webui v2.16 离线全量测试（临时目录副本起服务 :18765, 不碰生产配置）"""
 import json
 import os
 import shutil
@@ -82,6 +82,7 @@ def main():
         json.dump(v1, f, ensure_ascii=False)
     with open(os.path.join(TMP, "voice_target"), "w") as f:
         f.write("atv\n")
+    shutil.copy(os.path.join(SRC, "presence.py"), TMP)   # v2.16: /api/presence 依赖同目录 presence.py
 
     srv = subprocess.Popen([PY, "-u", "t1_webui.py"], cwd=TMP,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -160,11 +161,14 @@ def main():
         st, r = post("/api/keymap", {"target": "mac", "keys": {"102": {"single": "__CUSTOM_APP__"}}})
         check("mac 拒绝自定义占位落盘", [st, r["ok"]], [400, False])
 
-        # 6. locked 键保护（63 被改也保持 locked 值）
+        # 6. [v2.15] atv 63 解锁可自由改绑; mac 63 仍锁定（按住说话语音链保护）
         post("/api/keymap", {"target": "atv", "keys": {"63": {"single": "home"}, "28": {"single": "skip_forward"}}})
         cfg = read_file_cfg()
-        check("63 locked 保护", cfg["targets"]["atv"]["keys"]["63"]["single"], None)
+        check("atv 63 解锁可改 -> home", cfg["targets"]["atv"]["keys"]["63"]["single"], "home")
         check("atv 28 改为 skip_forward", cfg["targets"]["atv"]["keys"]["28"]["single"], "skip_forward")
+        post("/api/keymap", {"target": "mac", "keys": {"63": {"single": "ENTER"}}})
+        cfg = read_file_cfg()
+        check("mac 63 locked 保护", cfg["targets"]["mac"]["keys"]["63"]["single"], None)
 
         # 7. repeat 键清 double/long（atv 103 配 double 被清）
         post("/api/keymap", {"target": "atv", "keys": {"103": {"single": "up", "double": "menu"}}})
@@ -341,6 +345,78 @@ def main():
               ["APP:CLOSE", "★ 关闭当前应用（长按电源键）"] in d9["choices"]["mac"], True)
         check("配置页含 extLabel 特判（v2.11）",
               "关闭当前应用（长按电源键）" in html2, True)
+
+        # 20. v2.14: TARGET:SWITCH「★ 电源（连击切设备）」（三份动作清单扩展; 电源键重定义）
+        _, d10 = get("/api/keymap")
+        check("choices mac 含 TARGET:SWITCH",
+              ["TARGET:SWITCH", "★ 电源（连击切设备：1 击=ATV · 2 击=Mac · 3 击=Windows; 长按=关闭应用）"]
+              in d10["choices"]["mac"], True)
+        check("choices atv 含 TARGET:SWITCH",
+              ["TARGET:SWITCH", "★ 电源（连击切设备：1 击=电视电源 · 2 击=Mac · 3 击=Windows）"]
+              in d10["choices"]["atv"], True)
+        check("choices mac 含 MOUSE:TOGGLE（v2.13 补录）",
+              ["MOUSE:TOGGLE", "★ 鼠标模式开/关（长按直播; 方向=移光标 · OK=点击 · 音量=滚动）"]
+              in d10["choices"]["mac"], True)
+        check("atv __POWER__ 新标注（立即，无连击）",
+              ["__POWER__", "电源切换（立即，无连击）"] in d10["choices"]["atv"], True)
+        # 三份校验均接受 TARGET:SWITCH
+        st, r = post("/api/keymap", {"target": "mac", "keys": {"116": {"single": "TARGET:SWITCH"}}})
+        check("mac 接受 TARGET:SWITCH",
+              [st, r["ok"], read_file_cfg()["targets"]["mac"]["keys"]["116"]["single"]],
+              [200, True, "TARGET:SWITCH"])
+        st, r = post("/api/keymap", {"target": "win", "keys": {"116": {"single": "TARGET:SWITCH"}}})
+        check("win 接受 TARGET:SWITCH",
+              [st, r["ok"], read_file_cfg()["targets"]["win"]["keys"]["116"]["single"]],
+              [200, True, "TARGET:SWITCH"])
+        st, r = post("/api/keymap", {"target": "atv", "keys": {"116": {"single": "TARGET:SWITCH"}}})
+        check("atv 接受 TARGET:SWITCH",
+              [st, r["ok"], read_file_cfg()["targets"]["atv"]["keys"]["116"]["single"]],
+              [200, True, "TARGET:SWITCH"])
+        # reset 回到默认: 默认三份 #116.single=TARGET:SWITCH + 长按=APP:CLOSE + note 在场
+        st, r = post("/api/keymap/reset", {"target": "mac"})
+        cfg = read_file_cfg()
+        check("reset mac 后 #116=默认(连击网关)",
+              [st, r["ok"], cfg["targets"]["mac"]["keys"]["116"]["single"],
+               cfg["targets"]["mac"]["keys"]["116"]["long"]],
+              [200, True, "TARGET:SWITCH", "APP:CLOSE"])
+        check("默认 mac #116 note 在场",
+              "连击切换设备" in (cfg["targets"]["mac"]["keys"]["116"].get("note") or ""), True)
+        check("默认 atv #116.single=TARGET:SWITCH",
+              cfg["targets"]["atv"]["keys"]["116"]["single"], "TARGET:SWITCH")
+        check("配置页含 extLabel 特判（v2.14）",
+              "★ 电源（连击切设备）" in html2, True)
+        # ---- v2.16: /api/presence（设备在线状态; 降级安全）----
+        st, r = get("/api/presence")
+        check("无 presence.json -> available=False（降级）", [st, r.get("available")], [200, False])
+        check("降级 devices 为空", r.get("devices"), {})
+        st_dir = os.path.join(TMP, "state")
+        os.makedirs(st_dir, exist_ok=True)
+        now_t = time.time()
+        snap = {"v": 1, "ts": now_t, "pid": 1, "ttl": 6.0, "confirm_switch": 12.0,
+                "confirm_restore": 10.0,
+                "devices": {
+                    "atv": {"ip": "T1_IP", "state": "online", "last_seen": now_t - 1,
+                            "since": now_t - 100, "svcs": {"relay": {"port": 0, "last_seen": now_t - 1}}},
+                    "mac": {"ip": "MACOS_IP", "state": "online", "last_seen": now_t - 2,
+                            "since": now_t - 100, "svcs": {"voice": {"port": 8788, "last_seen": now_t - 2}}},
+                    "win": {"ip": "WINDOWS_IP", "state": "offline", "last_seen": now_t - 30,
+                            "since": now_t - 30, "svcs": {"voice": {"port": 8788, "last_seen": now_t - 30}}}},
+                "target": "mac", "desired": "mac", "auto": False, "hostname": "t", "events": []}
+        with open(os.path.join(st_dir, "presence.json"), "w") as f:
+            json.dump(snap, f)
+        st, r = get("/api/presence")
+        check("有效快照 -> available=True", [st, r.get("available")], [200, True])
+        check("三设备齐全", sorted((r.get("devices") or {}).keys()), ["atv", "mac", "win"])
+        check("mac state=online", r["devices"]["mac"]["state"], "online")
+        check("win offline + age 28-32s", 28 <= r["devices"]["win"]["age"] <= 32, True)
+        check("ip 透传", r["devices"]["win"]["ip"], "WINDOWS_IP")
+        snap["ts"] = now_t - 200          # 过期（>max_age 90s）-> 降级
+        with open(os.path.join(st_dir, "presence.json"), "w") as f:
+            json.dump(snap, f)
+        st, r = get("/api/presence")
+        check("过期快照 -> available=False", [st, r.get("available")], [200, False])
+        check("主页含 devbar（v2.16）", 'id="devbar"' in html, True)
+        check("主页引用 /api/presence（v2.16）", "/api/presence" in html, True)
     finally:
         srv.terminate()
         try:

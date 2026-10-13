@@ -1,0 +1,142 @@
+﻿dir=C:\Users\username\remotehub-win
+time=2026-10-13 15:40:50
+win_receiver.py sha256=1447BA0B99A64920B9A36F72FE417315EAC6CD04615C948493DE7F9750AAD573 size=26300 mtime=2026-10-13 15:40:46
+win_actions.py sha256=BA27B3E87AED451EEE8D62AFACAC11ED6F2766D4C25D48E8115DE9C024BCBCB3 size=140862 mtime=2026-10-13 15:40:46
+win_audio_switch.py sha256=0AEE59E99E92BEAA6AE77313507B8C45EF434420539A5BF1241A8A36DBA3117B size=19360 mtime=2026-10-13 15:40:46
+receiver.log HASH-ERROR
+win_actions VERSION line: VERSION = "1.14"
+win_receiver header: remotehub-win receiver v1.10 —— Windows 遥控接收端（Windows）
+scheduled-task state: Ready
+--- processes (python/cmd) ---
+pid=15976 cmd.exe | C:\WINDOWS\system32\cmd.exe /d /s /c ""C:\Program Files\WindowsApps\AppleInc.iCloud_15.10.39.0_x64__nzyj5cx40ttqa\iCloud\iCloudPasswordsExtensionHelper.exe" chrome-extension://pejdijmoenmkgeppbflobdenhhabjlaj/ --parent-window=0" < \\.\pipe\chrome.nativeMessaging.in.6cec073f2b8e12ba > \\.\pipe\chrome.nativeMessaging.out.6cec073f2b8e12ba
+pid=37124 pythonw.exe | "C:\Users\username\AppData\Local\Programs\Python\Python312\pythonw.exe" C:\Users\username\remotehub-win\win_audio_receiver.py
+pid=51688 cmd.exe | C:\WINDOWS\system32\cmd.exe /d /s /c "C:\Users\username\.workbuddy\plugins\cache\workbuddy-builtin\weixinpay\1.6.110\bin\run-node ^"C:\Users\username\.workbuddy\plugins\cache\workbuddy-builtin\weixinpay\1.6.110/dist/mcp-server.mjs^""
+pid=37892 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=44912 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=14996 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=45672 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=24552 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=27844 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=42612 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "C:\Users\username\Downloads\update-win-receiver.bat"
+pid=43184 pythonw.exe | "C:\Users\username\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:\Users\username\remotehub-win\win_receiver.py" 
+--- receiver.log tail 120 ---
+2026-10-13 14:57:02 KEY APP:PICK queued (ext)
+2026-10-13 14:57:02 EXT APP:PICK -> picker opened (鈫戔啌鈫愨啋 閫夋嫨 / OK 鎵撳紑 / 杩斿洖 鍙栨秷)
+2026-10-13 14:57:02 picker open: 4 apps, sel=1, dpi=150% (642x246)
+2026-10-13 14:57:02 KEY APP:PICK up ignored (ext: down-only)
+2026-10-13 14:57:03 KEY RIGHT down -> picker (routed)
+2026-10-13 14:57:03 KEY RIGHT up -> picker (routed)
+2026-10-13 14:57:04 KEY RIGHT down -> picker (routed)
+2026-10-13 14:57:04 KEY RIGHT up -> picker (routed)
+2026-10-13 14:57:05 KEY ENTER down -> picker (routed)
+2026-10-13 14:57:05 KEY ENTER up -> picker (routed)
+2026-10-13 14:57:05 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:05 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:05 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:06 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:06 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:06 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:06 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:06 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:07 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:07 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:07 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:07 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:07 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:07 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN down -> vk=0x28 ok=True
+2026-10-13 14:57:08 KEY DOWN up -> vk=0x28 ok=True
+2026-10-13 14:57:09 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:09 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:10 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:11 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:11 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:12 KEY UP down -> vk=0x26 ok=True
+2026-10-13 14:57:13 KEY UP up -> vk=0x26 ok=True
+2026-10-13 14:57:15 MOUSE MOUSE:MODE:ON DOWN -> mode hud on (tk)
+2026-10-13 14:57:15 hud open: 榧犳爣妯″紡 (436x173 @742,417)
+2026-10-13 14:57:17 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:18 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:18 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:21 MOUSE MOUSE:RCLICK DOWN -> rclick ok
+2026-10-13 14:57:25 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 14:57:25 MOUSE MOUSE:MOVE:LEFT UP -> move LEFT off
+2026-10-13 14:57:26 MOUSE MOUSE:LCLICK DOWN -> lclick ok
+2026-10-13 14:57:27 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:27 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:29 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:29 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:30 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:30 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:30 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:30 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:30 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:30 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:31 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:31 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:31 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:31 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:31 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:34 MOUSE MOUSE:SCROLL:DOWN DOWN -> scroll DOWN on
+2026-10-13 14:57:34 MOUSE MOUSE:SCROLL:DOWN UP -> scroll DOWN off
+2026-10-13 14:57:34 MOUSE MOUSE:SCROLL:DOWN DOWN -> scroll DOWN on
+2026-10-13 14:57:34 MOUSE MOUSE:SCROLL:DOWN UP -> scroll DOWN off
+2026-10-13 14:57:36 MOUSE MOUSE:SCROLL:UP DOWN -> scroll UP on
+2026-10-13 14:57:36 MOUSE MOUSE:SCROLL:UP UP -> scroll UP off
+2026-10-13 14:57:36 MOUSE MOUSE:SCROLL:UP DOWN -> scroll UP on
+2026-10-13 14:57:36 MOUSE MOUSE:SCROLL:UP UP -> scroll UP off
+2026-10-13 14:57:37 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 14:57:38 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 14:57:38 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 14:57:39 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:39 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:39 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:39 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:39 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:40 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:40 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:40 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:41 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:41 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:41 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 14:57:43 MOUSE MOUSE:MOVE:UP DOWN -> move UP on
+2026-10-13 14:57:43 MOUSE MOUSE:MOVE:UP UP -> move UP off
+2026-10-13 14:57:44 MOUSE MOUSE:LCLICK DOWN -> lclick ok
+2026-10-13 14:57:44 MOUSE MOUSE:LCLICK DOWN -> lclick ok
+2026-10-13 14:57:49 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 14:57:49 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 14:57:50 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 14:57:50 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 14:57:51 MOUSE MOUSE:MOVE:LEFT UP -> move LEFT off
+2026-10-13 14:57:52 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:52 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 14:57:53 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 15:40:42 KEY RUN:C:\Users\username\Downloads\update-win-receiver.bat queued (ext)
+2026-10-13 15:40:42 EXT RUN:C:\Users\username\Downloads\update-win-receiver.bat -> RUN -> C:\Users\username\Downloads\update-win-receiver.bat
+2026-10-13 15:40:47 === remotehub-win receiver v1.10 starting ===
+2026-10-13 15:40:47 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-13 15:40:47 win_actions v1.14 loaded (uia=ready)
+2026-10-13 15:40:47 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-13 15:40:47 listening udp :8788 (handle_voice)
+2026-10-13 15:40:47 listening udp :8791 (handle_key)

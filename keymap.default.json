@@ -7,9 +7,8 @@
       "keys": {
         "63": {
           "label": "语音",
-          "locked": true,
-          "note": "语音链专用：目标由主页三按钮切换（ATV=开 YouTube / Mac·Windows=语音输入）",
-          "single": null,
+          "note": "默认「打开 YouTube」；可自由改绑其它 ATV 动作。Mac·Windows 目标下语音键仍为按住说话（语音输入），不受此处影响",
+          "single": "__LAUNCH__:com.google.ios.youtube",
           "double": null,
           "long": null,
           "repeat": false
@@ -78,11 +77,12 @@
           "repeat": true
         },
         "116": {
-          "label": "电源",
-          "single": "__POWER__",
+          "label": "电源（连击切设备）",
+          "single": "TARGET:SWITCH",
           "double": null,
           "long": null,
-          "repeat": false
+          "repeat": false,
+          "note": "★ 连击切换设备：1 击=电视电源 · 2 击=macOS · 3 击=Windows（切换后按键即按新目标生效）"
         },
         "41": {
           "label": "直播",
@@ -175,17 +175,18 @@
           "repeat": false
         },
         "116": {
-          "label": "电源",
-          "single": "APP:workbuddy",
+          "label": "电源（连击切设备）",
+          "single": "TARGET:SWITCH",
           "double": null,
           "long": "APP:CLOSE",
-          "repeat": false
+          "repeat": false,
+          "note": "★ 连击切换设备：1 击=ATV · 2 击=macOS · 3 击=Windows · 长按=关闭当前应用 · 鼠标模式内同样生效"
         },
         "41": {
           "label": "直播",
           "single": "FOCUS_INPUT",
           "double": null,
-          "long": null,
+          "long": "MOUSE:TOGGLE",
           "repeat": false
         },
         "127": {
@@ -272,17 +273,18 @@
           "repeat": false
         },
         "116": {
-          "label": "电源",
-          "single": "APP:workbuddy",
+          "label": "电源（连击切设备）",
+          "single": "TARGET:SWITCH",
           "double": null,
           "long": "APP:CLOSE",
-          "repeat": false
+          "repeat": false,
+          "note": "★ 连击切换设备：1 击=ATV · 2 击=macOS · 3 击=Windows · 长按=关闭当前应用 · 鼠标模式内同样生效"
         },
         "41": {
           "label": "直播",
           "single": "FOCUS_INPUT",
           "double": null,
-          "long": null,
+          "long": "MOUSE:TOGGLE",
           "repeat": false
         },
         "127": {

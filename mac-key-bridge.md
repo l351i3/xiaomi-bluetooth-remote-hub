@@ -1,4 +1,4 @@
-# Mac 侧「遥控器按键」注入桥 key_bridge — 2026-10-12（v1.12 / serve 常驻 + 应用动作/选择器 v1.3 + 焦点修复/点击焦点/翻页 + URL·RUN + 长按关闭版）
+# Mac 侧「遥控器按键」注入桥 key_bridge — 2026-10-14（v1.15 / serve 常驻 + 应用动作/选择器 v1.3 + 焦点修复/点击焦点/翻页 + URL·RUN + 关闭/鼠标模式·模式 HUD + 设备切换 HUD + 焦点兜底〔lua v1.6〕版）
 
 ## 是什么
 
@@ -10,7 +10,12 @@
 **v1.8 新增「焦点修复 / 跳输入框」**（19:2x，用户反馈「切换窗口有时无法获得焦点、无法输入」）：`FOCUS_INPUT` 动作（T1 mac 份 #41 直播键默认绑定「★ 跳转输入框」）+ 应用切换后自动焦点修复 —— 经 **Hammerspoon** 执行 AX 操作，见下方专节与 `hammerspoon-focus.md`。  
 **v1.9-v1.11 新增**（10-10 20:3x ~ 10-11 21:5x）：`CLICK` 点击焦点元素 / 翻页键 `PAGEUP(116)`·`PAGEDOWN(121)` / `URL:`·`RUN:` 动作——各见下方专节。  
 **10-12 修订**：VERSION 常量单一来源化（修 STATUS 残留 v1.8；实测 `STATUS v1.11` ✅）；AppPicker **v1.3** 长名滚动（对齐 Windows）。  
-**v1.12 新增（10-12 14:0x）**：`APP:CLOSE`「关闭当前应用」（**长按电源键 #116** 生产绑定；app_switch v1.2 `close` = 优雅退出 + Finder 保护；CLOSE 专用强防抖 2.0s + 免 focus assist）——见下方专节。
+**v1.12 新增（10-12 14:0x）**：`APP:CLOSE`「关闭当前应用」（**长按电源键 #116** 生产绑定；app_switch v1.2 `close` = 优雅退出 + Finder 保护；CLOSE 专用强防抖 2.0s + 免 focus assist）——见下方专节。  
+**v1.13 新增（10-13）**：**鼠标模式**（`MOUSE:*` 动作，遥控器 dpad 模拟鼠标）——T1 `voice_fwd` v2.5 模式层产生，本桥经 Hammerspoon `remotehub_focus.lua` v1.2 执行（滑行/滚动/点击）；端到端实测 8 PASS（真实光标位移/松开即停/看门狗自停）——见下方专节。
+**v1.14 新增（10-13 14:2x）**：`MOUSE:MODE:ON|OFF` **模式 HUD 后端**（→ lua v1.3 `mouseHud` 浮层；仅 DOWN；全链冒烟 `OK hud on/off` ✅）——配套 T1 `voice_fwd` v2.6，治用户首测「按了不知道生效没有」。
+**v1.15 新增（10-13 15:2x）**：`TARGET:SWITCH:ATV|MAC|WIN` **设备切换 HUD 后端**（→ lua v1.4 `switchHud` 浮层；仅 DOWN；复用鼠标串行 worker）——配套 T1 `voice_fwd` v2.7 / `relay_min` v0.11 **电源键连击**（1 击=ATV / 2 击=Mac / 3 击=Win；切到 atv 时提示发旧目标端=本端必见）。lua 实机应答 `OK hud switch:win` ✅。
+**lua v1.5 更新（10-14 03:0x）**：本桥脚本**零改动**（焦点链路 `hs -c do_focus_input` 不变）；`focusInput()` 五段全 miss **兜底点击 `(0.5, 0.92)` + 光标原位恢复**（报 `NOEDIT+CLICK@x,y`）——治用户反馈「鼠标模式下按焦点聚焦键不灵 + 键盘模式也不灵」（另一根因 = T1 `voice_fwd` v2.8 模式内放行 #41）。详见 `hammerspoon-focus.md` 沿革 v1.5。
+**lua v1.6 更新（10-14 03:4x，承用户复查「还是不行」深挖）**：本桥脚本**仍零改动**；lua 侧修复三号根因——① **前台提升 `ensureFrontApp`**（目标窗被遮挡时合成点击/键盘被顶层窗截胡；activate + z 序校验）；② 兜底坐标 `0.92 比例` → **距窗底 105px**（0.92 实测落输入框下方按钮行）；③ 提升失败 `front=fail-skip` 跳过点击。实机注入字符验证 ✓。详见 `hammerspoon-focus.md` 沿革 v1.6。
 
 ## 链路全图（目标=mac）
 
@@ -40,7 +45,7 @@ RC003 遥控器 ──BLE──> T1
 
 | 服务                     | label                                                        | 说明                                                                |
 | ---------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------- |
-| key_bridge.py **v1.12** | `com.remotehub.key-bridge`                                   | UDP :8791 收键 → 双路径注入 + 选择器路由 + **焦点修复/CLICK/URL·RUN/关闭**（KeepAlive）                                   |
+| key_bridge.py **v1.15** | `com.remotehub.key-bridge`                                   | UDP :8791 收键 → 双路径注入 + 选择器路由 + **焦点修复/CLICK/URL·RUN/关闭/鼠标模式·模式 HUD/设备切换 HUD**（KeepAlive）                                   |
 | cgpost serve 常驻        | `com.remotehub.cgpost-serve`                                 | **v1.4 新增**（第 4 个 Mac 服务）；UNIX `/tmp/cgpost.sock`；CGEventPost 主通道 |
 | hs_health.py **v1.0**  | `com.remotehub.hs-health`                                    | **19:5x 新增（第 5 个）**：每小时巡检 Hammerspoon 焦点域 + 四服务存活；异常自动修复 + 发通知；详 `hammerspoon-focus.md`「健康守卫」节 |
 | （语音链）                  | `com.remotehub.voice-bridge` / `com.remotehub.atvv-receiver` | 见 `voice-diagnosis-2026-10-10.md`                                 |
@@ -237,6 +242,9 @@ python3 remote-hub/cgpost_cli.py "KEY 107 1"     # 手动发键 DOWN
 | **v1.11** | **10-11 21:5x** | **`URL:<网址>` / `RUN:<命令>` 动作**（仅 DOWN 触发 + per-value 防抖 0.6s；launchd kickstart 重启 ✅；实弹：RUN 探针 / URL 开浏览器 ✅） |
 | **v1.11 修订** | **10-12** | **VERSION 常量单一来源化**（banner/STATUS 共用；修 STATUS 残留 v1.8 → 重启生效实测 `STATUS v1.11` ✅；前档 `.bak-20261012-1348-preVersionFix` = `03042dcd…`） |
 | **v1.12** | **10-12 14:0x** | **`APP:CLOSE` 关闭当前应用**（长按电源键生产绑定；app_switch v1.2 `close`；CLOSE 强防抖 2.0s + 免 focus assist；launchd kickstart 重启 → `STATUS v1.12` 实测；生产路径实弹 TextEdit 关闭 ✅） |
+| **v1.13** | **10-13 13:1x** | **鼠标模式 `MOUSE:*` 分支**（MOVE / SCROLL / LCLICK / RCLICK → lua v1.2 鼠标执行器；串行 worker 保序；`mouse_channel_test.py` 8 PASS（真实光标）） |
+| **v1.14** | **10-13 14:2x** | **`MOUSE:MODE:ON\|OFF` 模式 HUD 后端**（→ lua v1.3 `mouseHud`；仅 DOWN；全链冒烟 `OK hud on/off` ✅；配套 voice_fwd v2.6 —— 治用户首测「按了不知道生效没有」） |
+| **v1.15** | **10-13 15:2x** | **`TARGET:SWITCH:ATV\|MAC\|WIN` 设备切换 HUD 后端**（→ lua v1.4 `switchHud`；仅 DOWN；复用鼠标串行 worker，日志 tag 区分 `[hud]`/`[mouse]`；lua 实机应答 `OK hud switch:win` ✅；配套 T1 voice_fwd v2.7 / relay_min v0.11 电源键连击） |
 
 备份：`key_bridge.py.v11.bak-20261010-1233`（iohid_post 形态）/ `key_bridge.py.v12.bak-20261010-1258`（指向裸 cgpost，授权不生效，仅留档）/ `key_bridge.py.v15.bak-20261010-1649`（v1.5 前档）/ `key_bridge.py.v16.bak-20261010-1748-rebuilt`（v1.6——升级时漏备份，后从会话存档的 8 个 v1.7 编辑对反向重建，经"版本标记+编译+往返回溯"三重校验）/ `key_bridge.py.v17.bak-20261010-1748`（v1.7 上线后字节快照 = v1.8 前档；经 diff 全量核验「差异仅 v1.8 专属」）**/ **`key_bridge.py.v18.bak-20261010-2035-rebuilt`（v1.8——升级 v1.9 时漏存快照，20:35 从 v1.9 反向重建：8 步替换全断言命中 + 语法 OK + 零 CLICK 残留 + 与 v1.7 全量 diff「差异仅 v1.8 专属」双重校验）** / `key_bridge.py.v19.bak-20261010-2035`（v1.9 上线后字节快照，md5 `256a4276…` 与运行版一致）** / `key_bridge.py.v110.bak-20261011-1224`（v1.10 上线后字节快照，banner 键表 11 项）** / `key_bridge.py.v111.bak-20261011-2212`（v1.11 上线后字节快照；v1.11 前档 = `.bak-20261011-2157-preUrlRun`，与 v110 快照同哈希 `db47a8de…`）** / `key_bridge.py.bak-20261012-1348-preVersionFix`（VERSION 单一来源化前档 = `03042dcd…`）；AppPicker 前档 `AppPicker.bak-20261010-1930`、**`AppPicker.bak-20261012-1250`（v1.2 前档 = v1.1 `a2f0ac6c…`）**、**`AppPicker.bak-20261012-1348`（v1.3 前档 = v1.2 `d10135a6…`，sha256 `f42b3528…`）**；AppPicker v1.3 现网 `05c0c19e…`（备份链 v1.0→v1.3 四代经 nm 符号表逐代核验）；**`key_bridge.py.bak-20261012-1358-preV112`（v1.12 前档 = v1.11 终版——逆向重建，与 `.bak-20261012-1348-preVersionFix` 快照全量 diff「仅剩 VersionFix 3 处」精确获证）；key_bridge **v1.12 现网 `d4977ee3…`**；app_switch **v1.2 二进制 `0f0a5294…`**（前档 `app_switch.v11.bak-20261012-1357` = v1.1〔133808B〕；源码重建 `app_switch.swift.v11.bak-20261012-1358` 编译冒烟通过）；`close_app_test.py`（18 项 / 双解释器 3.9+3.13 各 18/18）`1ab965f0…`**
 
@@ -303,6 +311,31 @@ flags 字段，无法伪造状态机本身。
 ### 证据索引
 
 `attic/combo-investigation-20261010/`（8 文件）：`cgpost2.c`（TCC 身份门控实证件）/ `vhid_test.c` + `vhid_ent.plist`（γ 路线与 SIGKILL 实证）/ `iohid_post_test.c` / `combo_seq_test.py`（序列注入+防悬挂测试工具）/ `keylisten1/2/3.txt`（三轮监听器原始数据）。
+
+## v1.13 鼠标模式（MOUSE:* — 遥控器 dpad 模拟鼠标；2026-10-13）
+
+**语义**（T1 `voice_fwd` 模式层产生——v2.5 引入 / v2.6 补模式 HUD 提示与电源·主页放行；长按直播键 #41 开/关）：
+
+| 动作 | 语义 | lua 调用 |
+|---|---|---|
+| `MOUSE:MOVE:UP/DOWN/LEFT/RIGHT` | 滑行移动（**按住**：DOWN 启动 / 保活刷新 / UP 停止） | `mouseStart/mouseStop("<dir>")` |
+| `MOUSE:SCROLL:UP/DOWN` | 连续滚动（同上 hold 语义） | `scrollStart/scrollStop("<dir>")` |
+| `MOUSE:LCLICK` / `MOUSE:RCLICK` | 当前光标位置点击（**仅 DOWN**） | `mouseClick("left"/"right")` |
+
+**实现要点**：
+- 路由：`name.startswith("MOUSE:")` → `mouse_dispatch`（收包线程仅入队, µs 级）→
+  **专用串行 worker**（顺序敏感: start/保活/stop 不可乱序; 队列满丢弃 —— 保活语义天然容丢,
+  UP 丢失由 lua 侧 1.2s 看门狗兜底刹车）。
+- 执行：`hs -c 'dofile("~/.hammerspoon/remotehub_focus.lua").mouseStart("up")'` ——
+  鼠标状态挂 `_G.REMOTEHUB_MOUSE` 单例跨 hs 调用存活（hs CLI 每次重新 dofile）。
+- 滑行参数（与 Windows 端逐条对齐）: 加速 700px/s² / 上限 1600px/s / 60Hz / 1.2s 无刷新
+  自停 / 多方向叠加不归一化（斜向 √2 速）/ 字符键「轻点=精准微调」（速度自 0 线性加速）。
+- T1 侧保活节奏 **0.4s**（`MOUSE_KEEPALIVE`, 3 倍于看门狗窗口）—— 掉线/断流即自动刹车。
+- 不做防抖: 重复 DOWN = 保活刷新（幂等）; UP = 配对刹车（不可去重）。
+
+**测试**：逻辑层 `_mouse_cmd` 映射 12 例（key_bridge）；lua 执行器 **12 PASS**（`mouse_channel_test.py`，含 v1.3 `mouseHud` 段）;
+**UDP→key_bridge→hs→真实光标端到端 8 PASS**（2026-10-13: 右移实测 126px@0.6s、松开即停、
+看门狗自停、点击/滚动实执行、非法方向优雅忽略）。
 
 ## 排障要点（★ 方法论，2026-10-10 事故复盘）
 

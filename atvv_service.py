@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""ATVV 常驻语音服务 v1.1 (T1) — RC003 语音流 → 实时 UDP 双播 Mac + Windows
+"""ATVV 常驻语音服务 v1.2 (T1) — RC003 语音流 → 实时 UDP 双播 Mac + Windows
 
 链路: RC003 按住语音键 → (BLE/ATVV) → 本服务(常驻)
-      → UDP :8789 → Mac(MACOS_IP) + Windows(WINDOWS_IP)
+      → UDP :8789 → Mac + Windows（目标地址由 presence 心跳学习; 常量回退; 离线跳过）
+v1.2 (2026-10-14): presence 接线 —— 投递地址去硬编码 + 体面断开:
+                   目标 IP 优先取心跳学习地址（state/presence.json; MAC_IP/WIN_IP 降级 fallback）;
+                   目标「明确离线」（3 拍无心跳）→ 跳过发送（边沿日志; 恢复自动继续）;
+                   降级安全: 守护未部署/快照过期 -> unknown, 维持旧行为（照旧投递常量地址）。
 v1.1 (2026-10-11): 双目标发送（Windows 音频链接入；接收端 windows/win_audio_receiver.py）；
                    单目标失败不影响其他目标（错误日志按目标 60s 节流）。
 协议 T1→接收端 (每包 = [1B type][payload]):
@@ -22,6 +26,11 @@ import traceback
 
 import dbus
 
+try:  # v1.2: presence 心跳读端（降级: 无 presence.py -> None, 全程回退常量投递）
+    from presence import StateView as _StateView
+except Exception:  # noqa: BLE001
+    _StateView = None
+
 MAC = "C0:5D:39:XX:XX:XX"
 SVC_UUID = "ab5e0001"
 RX_UUID = "ab5e0002"
@@ -32,15 +41,42 @@ GET_CAPS = [0x0A, 0x01, 0x00, 0x00, 0x03, 0x03]
 MIC_OPEN = [0x0C, 0x00]
 MIC_CLOSE = [0x0D]
 
-MAC_IP = "MACOS_IP"
-WIN_IP = "WINDOWS_IP"    # Windows（10-11 接入音频链；接收端 windows/win_audio_receiver.py）
+MAC_IP = "MACOS_IP"    # macOS —— v1.2: fallback（优先用心跳学习地址）
+WIN_IP = "WINDOWS_IP"    # Windows（10-11 接入音频链）—— v1.2: fallback
 UDP_PORT = 8789
-DESTS = ((MAC_IP, UDP_PORT), (WIN_IP, UDP_PORT))
+_TARGETS = (("mac", MAC_IP, UDP_PORT), ("win", WIN_IP, UDP_PORT))   # v1.2: 角色-常量-端口（投递时动态解析）
 T_EXTEND = 2.0
 
 
 def log(msg):
     print(time.strftime("%Y-%m-%d %H:%M:%S") + " " + msg, flush=True)
+
+
+# ---- v1.2: presence 投递闸门（地址动态化 + 离线跳过） ----
+_pv = _StateView() if _StateView else None   # 读端热缓存（0.5s 节流 + mtime 缓存）
+_pv_offline = set()                          # 已报告过离线的 role（边沿日志: 离线/恢复各一条）
+
+
+def _dests():
+    """v1.2: 动态目标表 [(role, ip, port)...] —— 心跳 IP 优先/常量回退;
+    明确离线 -> 跳过（边沿日志）; unknown/守护未就绪 -> 降级旧行为（常量）。"""
+    out = []
+    for role, fb, port in _TARGETS:
+        if _pv is not None:
+            if _pv.device_state(role) == "offline":
+                if role not in _pv_offline:
+                    _pv_offline.add(role)
+                    log(f"presence: {role} 离线（心跳超时）, 暂停音频发送")
+                continue
+            ip = _pv.ip_of(role) or fb
+            if role in _pv_offline:
+                _pv_offline.discard(role)
+                log(f"presence: {role} 已恢复心跳, 恢复音频发送")
+        else:
+            ip = fb
+        if ip:
+            out.append((role, ip, port))
+    return out
 
 
 def arr76(vals):
@@ -55,8 +91,10 @@ _last_err = {}
 
 
 def send_all(sock, payload):
-    """v1.1 双目标发送: 单目标失败不影响其他目标; 错误日志按目标 60s 节流。"""
-    for dst in DESTS:
+    """v1.2 双目标发送: 单目标失败不影响其他目标; 错误日志按目标 60s 节流。
+    目标表每次动态解析（presence 心跳地址优先; 明确离线的目标跳过）。"""
+    for _role, _ip, _port in _dests():
+        dst = (_ip, _port)
         try:
             sock.sendto(payload, dst)
             _last_err.pop(dst, None)
@@ -153,7 +191,8 @@ def run_once(sock):
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    log("atvv_service v1.1 启动 -> " + ", ".join("%s:%d" % d for d in DESTS))
+    log("atvv_service v1.2 启动 -> " + ", ".join("%s@%s:%d" % d for d in _dests())
+        + (" | presence=on" if _pv else " | presence=off"))
     backoff = 2.0
     while True:
         try:

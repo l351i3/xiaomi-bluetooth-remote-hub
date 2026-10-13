@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-remotehub-win receiver v1.6 —— Windows 遥控接收端（Windows）
+remotehub-win receiver v1.11 —— Windows 遥控接收端（Windows）
 =========================================================
 由 T1（T1_IP）的 voice_fwd 发包，本机接收并注入：
 
@@ -16,6 +16,55 @@ remotehub-win receiver v1.6 —— Windows 遥控接收端（Windows）
   CLICK / FOCUS_INPUT / APP:CYCLE / APP:TOGGLE / APP:NEXT / APP:PICK / APP:<名称>
   / URL:<网址> / RUN:<命令>（v1.5）
   —— 仅 DOWN 触发; 收包线程快速防抖(CLICK/FOCUS/URL/RUN=0.6s, APP=0.35s)后交 action-worker
+
+鼠标动作表（v1.7 起, win_actions.mouse_control —— 专用路由, 不走扩展 down-only 管道）:
+  MOUSE:MOVE:UP|DOWN|LEFT|RIGHT（滑行; 按住语义: DOWN 启动/保活刷新, UP 停止）
+  MOUSE:SCROLL:UP|DOWN（连续滚动, 同 hold 语义） / MOUSE:LCLICK | MOUSE:RCLICK（仅 DOWN）
+  MOUSE:MODE:ON|OFF（v1.8: 模式提示 HUD —— win_actions v1.12 Tk 浮层） /
+  MOUSE:REPORT（v1.8: 取证报告 state/mouse-report.json —— 配合 RUN 通道回传）
+  TARGET:SWITCH:ATV|MAC|WIN（v1.10: 设备切换提示 HUD —— win_actions v1.14「🎯 已切到 X」
+  Tk 浮层; 仅 DOWN; 同 MOUSE:* 路由; 来源 = T1 电源键连击 voice_fwd v2.7 / relay v0.11）
+
+v1.11 变更（2026-10-14，presence 心跳 —— T1 在线注册/离线闸门/去硬编码 IP）：
+  - main() 启动 presence_beat.start("win", [voice:8788, key:8791, audio:8789]) 心跳线程:
+    每 2s 向 T1 UDP :8790 注册（ACK/退避由库处理）; 首拍即让 T1 学习本机 IP。
+    T1 侧（voice_fwd v2.9 / atvv_service v1.2）据此: 设备离线→暂停投递（消灭
+    「假已发送」）、投递地址心跳 IP 优先于静态常量（DHCP 变更自动跟上）。
+  - 单代理形态: 一个心跳源代报全部 svc（对齐 Mac presence-beater 形态）。
+  - 依赖同目录 presence_beat.py（随 update-win-receiver.ps1 分发）; 加载失败仅降级
+    为「无心跳」（日志一行; 主链路不受影响）。
+
+v1.10 变更（2026-10-13，电源键连击切换设备 —— 配套 win_actions v1.14）：
+  - handle_key 的 MOUSE:* 专用路由扩为 ("MOUSE:", "TARGET:SWITCH:") 双前缀 —— 设备
+    切换 HUD（仅 DOWN）走同通道直呼 win_actions.mouse_control, 不进扩展动作
+    down-only 管道（在 picker 路由/VK 查表之前分流; 旧版 win_actions 对未知动作
+    安全忽略, 前后兼容; 日志 tag 区分 MOUSE/SWITCH）。
+  - 其余（语音链/键盘注入/扩展动作/picker 路由/鼠标动作）行为全部不变。
+
+v1.9 变更（2026-10-13，★ 配套 win_actions v1.13 —— 修复跨模块 SendInput 类型冲突）：
+  - 根因: ctypes.windll.user32 为进程级共享对象; 本文件与 win_actions 各自定义 INPUT
+    类并各自设置 SendInput.argtypes（后加载的本文件声明覆盖）。两套类不同一 →
+    win_actions 的全部 SendInput 调用（鼠标点击/滚轮/Alt tap）抛 TypeError 被
+    except 吞 → 「OK 键完全无反应 / 鼠标点击全灭」; 本文件键盘 send_vk 用自己
+    的类（与最终 argtypes 同型）→ 键盘正常 —— 「键盘鼠标一半好一半坏」之谜即此
+    （MOUSE:REPORT 探针实锤: "argument 2: TypeError: expected LP_INPUT instance
+    instead of pointer to INPUT"）。
+  - 修复: 本文件不再重复定义 INPUT 等结构 —— 直接复用 win_actions 的（单一类对象,
+    两模块 argtypes 声明与调用全同型）; win_actions 不可用（离线降级）时保留本地
+    等价兜底定义（字段逐项一致）。
+  - 附带: MOUSE:REPORT 增 input_class_module 字段（修复后应恒为 "win_actions"）。
+  - 其余（语音链/键盘/扩展动作/picker 路由/鼠标动作表）行为全部不变。
+
+v1.8 变更（2026-10-13，配套 win_actions v1.12 —— 实测反馈修复轮; 本文件仅版本标识）：
+  - 配套分发标识升级（v1.7 + v1.11 -> v1.8 + v1.12）。新动作 MOUSE:MODE:ON|OFF /
+    MOUSE:REPORT 经既有 handle_mouse 通用分派自动覆盖（无需本文件代码改动）。
+  - win_actions v1.12: 滑行速度事件驱动清零修复（治「越按越快」）+ 模式 HUD + 取证报告。
+
+v1.7 变更（2026-10-13，鼠标模式 —— 遥控器 dpad 模拟鼠标, 用户需求）：
+  - handle_key 新增 MOUSE:* 前置分支 -> handle_mouse -> win_actions.mouse_control。
+    MOVE/SCROLL 是 DOWN+UP 双向 hold 语义 —— 不能走 handle_ext（down-only 管道）, 故
+    在 VK 查表/picker 路由之前独立分流; 不做防抖（保活包即刷新信号; 重复 DOWN 幂等）。
+  - v1.6 键盘/语音/扩展动作/picker 路由 行为不变。
 
 v1.6 变更（2026-10-11 深夜三期，防抖首击语义修复 —— 随 picker v2.3 配套分发）：
   - handle_ext 防抖 "从未记录" 哨兵修复: 原 `now - _ext_last.get(action, 0.0) < d` 把
@@ -93,6 +142,14 @@ except Exception as _was_err:               # 加载失败 -> 麦克风切换降
 else:
     _WAS_ERR = ""
 
+try:
+    import presence_beat                    # v1.11: 在线注册心跳（同目录; T1 侧离线闸门 + IP 学习）
+except Exception as _pb_err:                # 加载失败 -> 无心跳降级（主链路不受影响）
+    presence_beat = None
+    _PB_ERR = str(_pb_err)
+else:
+    _PB_ERR = ""
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH = os.path.join(HERE, "receiver.log")
 VOICE_PORT = 8788
@@ -112,37 +169,49 @@ VK = {
 EXTENDED = {"UP", "DOWN", "LEFT", "RIGHT", "PAGEUP", "PAGEDOWN"}
 
 # ---------------- SendInput 定义 ----------------
+# v1.9: ★ 修复跨模块 SendInput 类型冲突 —— ctypes.windll.user32 是进程级共享对象;
+#   此前本文件与 win_actions 各自定义 INPUT 类 + 各自设置 SendInput.argtypes
+#   （后加载者覆盖）→ 两套类不同一, win_actions 侧全部 SendInput 调用（鼠标点击/
+#   滚轮/Alt tap）因跨类指针被 ctypes 拒绝抛 TypeError 被 except 吞 → 静默全灭。
+#   实锤（2026-10-13 MOUSE:REPORT 探针）: "argument 2: TypeError: expected
+#   LP_INPUT instance instead of pointer to INPUT"。修复: 统一复用 win_actions
+#   的 INPUT（单一类对象 → 两模块声明/调用全部同型）; win_actions 不可用时保留
+#   本地兜底定义（离线降级, 字段与 win_actions v1.13 逐项一致）。
 INPUT_KEYBOARD = 1
 KEYEVENTF_EXTENDEDKEY = 0x0001
 KEYEVENTF_KEYUP = 0x0002
 
-ULONG_PTR = ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
+if win_actions is not None and hasattr(win_actions, "INPUT"):
+    ULONG_PTR = win_actions.ULONG_PTR
+    KEYBDINPUT = win_actions.KEYBDINPUT
+    MOUSEINPUT = win_actions.MOUSEINPUT
+    HARDWAREINPUT = win_actions.HARDWAREINPUT
+    _INPUTUNION = win_actions._INPUTUNION
+    INPUT = win_actions.INPUT
+else:                                   # 兜底（win_actions 未加载: 离线/降级场景）
+    ULONG_PTR = ctypes.c_ulonglong if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_ulong
 
+    class KEYBDINPUT(ctypes.Structure):
+        _fields_ = [("wVk", wt.WORD), ("wScan", wt.WORD), ("dwFlags", wt.DWORD),
+                    ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
 
-class KEYBDINPUT(ctypes.Structure):
-    _fields_ = [("wVk", wt.WORD), ("wScan", wt.WORD), ("dwFlags", wt.DWORD),
-                ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
+    class MOUSEINPUT(ctypes.Structure):
+        _fields_ = [("dx", wt.LONG), ("dy", wt.LONG), ("mouseData", wt.DWORD),
+                    ("dwFlags", wt.DWORD), ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
 
+    class HARDWAREINPUT(ctypes.Structure):
+        _fields_ = [("uMsg", wt.DWORD), ("wParamL", wt.WORD), ("wParamH", wt.WORD)]
 
-class MOUSEINPUT(ctypes.Structure):
-    _fields_ = [("dx", wt.LONG), ("dy", wt.LONG), ("mouseData", wt.DWORD),
-                ("dwFlags", wt.DWORD), ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
+    class _INPUTUNION(ctypes.Union):
+        _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT)]
 
-
-class HARDWAREINPUT(ctypes.Structure):
-    _fields_ = [("uMsg", wt.DWORD), ("wParamL", wt.WORD), ("wParamH", wt.WORD)]
-
-
-class _INPUTUNION(ctypes.Union):
-    _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT), ("hi", HARDWAREINPUT)]
-
-
-class INPUT(ctypes.Structure):
-    _fields_ = [("type", wt.DWORD), ("u", _INPUTUNION)]
+    class INPUT(ctypes.Structure):
+        _fields_ = [("type", wt.DWORD), ("u", _INPUTUNION)]
 
 
 _user32 = ctypes.windll.user32 if os.name == "nt" else None
 if _user32 is not None:
+    # v1.9: 引用统一后的 INPUT 类 —— 与 win_actions 的声明指向同一对象（幂等, 谁先谁后都同型）
     _user32.SendInput.argtypes = [wt.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
     _user32.SendInput.restype = wt.UINT
 
@@ -300,6 +369,12 @@ def handle_key(msg):
     action_raw = parts[1]                # v1.5: 原值传扩展动作（URL/RUN 大小写保真）
     action = action_raw.upper()          # 键盘查表/分派判定用大写
     phase = parts[2].lower()
+    # v1.7: MOUSE:* 专用路由（DOWN+UP 双向 hold 语义 —— 不走 ext down-only 管道;
+    # 在 picker 路由/VK 查表之前直接分流）
+    # v1.10: TARGET:SWITCH:*（设备切换 HUD）同路由 —— 电源键连击, 仅 DOWN
+    if action.startswith(("MOUSE:", "TARGET:SWITCH:")):
+        handle_mouse(action, phase)
+        return
     # v1.4: 应用选择器打开时, 键盘动作直连路由（GUI 选择器不依赖系统键盘焦点）
     if win_actions is not None and phase in ("down", "up"):
         _pr = getattr(win_actions, "picker_route", None)
@@ -313,6 +388,20 @@ def handle_key(msg):
     up = (phase == "up")
     ok = send_vk(vk, up=up, extended=(action in EXTENDED))
     log("KEY %s %s -> vk=0x%02X ok=%s" % (action, phase, vk, ok))
+
+
+# ---------------- v1.7: 鼠标模式（MOUSE:* 专用路由） ----------------
+def handle_mouse(action, phase):
+    """v1.7: MOUSE:* 动作 -> win_actions.mouse_control 直呼（状态机 + 平台执行）。
+    v1.10: TARGET:SWITCH:*（设备切换 HUD）走同一通道（仅 DOWN, 无防抖——重发幂等）。
+    收包线程内执行（win_actions 侧仅集合操作/懒启动线程, µs 级）; 不做防抖 ——
+    重复 DOWN 是保活刷新（幂等）, UP 是配对刹车（不可去重）。"""
+    if win_actions is None or not hasattr(win_actions, "mouse_control"):
+        log("mouse action dropped (win_actions missing/old): [%s]" % action)
+        return
+    r = win_actions.mouse_control(action, phase)
+    tag = "SWITCH" if action.startswith("TARGET:SWITCH:") else "MOUSE"   # v1.10
+    log("%s %s %s -> %s" % (tag, action, phase.upper(), r))
 
 
 # ---------------- v1.2: 扩展动作（CLICK / FOCUS_INPUT / APP:*） ----------------
@@ -400,7 +489,7 @@ def listen_udp(port, handler):
 def selftest_main():
     """v1.4: --selftest —— 打印平台/UIA/窗口/焦点元素/音频设备概况（ASCII 安全输出到控制台,
     完整内容写同目录 selftest.log）。"""
-    print("=== win_receiver v1.6 selftest ===")
+    print("=== win_receiver v1.11 selftest ===")
     print("python: %s" % sys.version.split()[0])
     if win_audio_switch is None:
         print("win_audio_switch: LOAD FAILED (%s)" % _WAS_ERR)
@@ -438,7 +527,7 @@ def main():
         sys.exit(1)
     if "--selftest" in sys.argv:
         sys.exit(selftest_main())
-    log("=== remotehub-win receiver v1.6 starting ===", also_console=True)
+    log("=== remotehub-win receiver v1.11 starting ===", also_console=True)
     log("python=%s user=%s host=%s dir=%s" % (
         sys.version.split()[0], os.environ.get("USERNAME", "?"),
         socket.gethostname(), HERE))
@@ -466,6 +555,15 @@ def main():
             log("win_audio_switch init failed: %s (mic auto-switch may fail)" % e)
     else:
         log("win_audio_switch NOT loaded (%s) -> mic auto-switch disabled" % _WAS_ERR)
+    # v1.11: presence 心跳（单代理代报 3 svc —— 对齐 Mac presence-beater 形态）
+    if presence_beat is not None:
+        try:
+            presence_beat.start("win", [("voice", VOICE_PORT), ("key", KEY_PORT),
+                                        ("audio", 8789)], log_fn=log)   # 8789 = audio receiver 端口
+        except Exception as e:
+            log("presence: heartbeat start failed: %s" % e)
+    else:
+        log("presence: heartbeat disabled (presence_beat not loaded: %s)" % _PB_ERR)
     threading.Thread(target=_voice_watchdog, daemon=True, name="voice-watchdog").start()
     threading.Thread(target=listen_udp, args=(VOICE_PORT, handle_voice), daemon=True).start()
     threading.Thread(target=listen_udp, args=(KEY_PORT, handle_key), daemon=True).start()

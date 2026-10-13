@@ -1,0 +1,10 @@
+win_actions v1.13 selftest
+platform: win32 | dpi: per-monitor-v2 | uia: ready
+top-level windows (filtered): 5 | apps: 4
+  explorer.exe       | Downloads - 文件资源管理器
+  WorkBuddy.exe      | WorkBuddy
+  mintty.exe         | MINGW64:/                                   
+  chrome.exe         | 新标签页 - Google Chrome
+tkinter: v8.6 ok (APP:PICK 图标网格可用)
+uwp icon path: shell:AppsFolder via IShellItemImageFactory ready
+focused element: type=50026 name=昨天 rect=(606, 254, 2153, 289)

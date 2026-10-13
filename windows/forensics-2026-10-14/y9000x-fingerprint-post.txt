@@ -1,0 +1,148 @@
+﻿dir=C:\Users\username\remotehub-win
+time=2026-10-14 04:42:21
+win_receiver.py sha256=FBC8691326F7BD999AF2BA561C6CBD6BCE3A47AC10EC6D62E55491FA186DD686 size=27878 mtime=2026-10-14 04:42:16
+win_actions.py sha256=22E1F1D2C48FD82D9A8B578069591F976C398059EC9ADC9EF9B266B60B139F99 size=143055 mtime=2026-10-14 04:42:16
+win_audio_switch.py sha256=0AEE59E99E92BEAA6AE77313507B8C45EF434420539A5BF1241A8A36DBA3117B size=19360 mtime=2026-10-14 04:42:17
+presence_beat.py sha256=B5B5B2A0F892A936B9AFB53F9D4451BDFCDAA43761CA5CACD17C448094320F9C size=5325 mtime=2026-10-14 04:42:17
+receiver.log HASH-ERROR
+win_actions VERSION line: VERSION = "1.15"
+win_receiver header: remotehub-win receiver v1.11 —— Windows 遥控接收端（Windows）
+scheduled-task state: Ready
+--- processes (python/cmd) ---
+pid=15976 cmd.exe | C:\WINDOWS\system32\cmd.exe /d /s /c ""C:\Program Files\WindowsApps\AppleInc.iCloud_15.10.39.0_x64__nzyj5cx40ttqa\iCloud\iCloudPasswordsExtensionHelper.exe" chrome-extension://pejdijmoenmkgeppbflobdenhhabjlaj/ --parent-window=0" < \\.\pipe\chrome.nativeMessaging.in.6cec073f2b8e12ba > \\.\pipe\chrome.nativeMessaging.out.6cec073f2b8e12ba
+pid=37124 pythonw.exe | "C:\Users\username\AppData\Local\Programs\Python\Python312\pythonw.exe" C:\Users\username\remotehub-win\win_audio_receiver.py
+pid=37892 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=44912 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=14996 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=45672 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=24552 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=27844 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=42612 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "C:\Users\username\Downloads\update-win-receiver.bat"
+pid=48928 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=38616 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=36148 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=33180 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=42732 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=14812 cmd.exe | C:\WINDOWS\system32\cmd.exe /c "Downloads\update-win-receiver.bat"
+pid=47824 pythonw.exe | "C:\Users\username\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:\Users\username\remotehub-win\win_receiver.py" 
+--- receiver.log tail 120 ---
+2026-10-13 15:51:27 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 15:51:28 MOUSE MOUSE:MOVE:LEFT DOWN -> move LEFT on
+2026-10-13 15:51:28 MOUSE MOUSE:MOVE:LEFT UP -> move LEFT off
+2026-10-13 15:51:28 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 15:51:28 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 15:51:29 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 15:51:29 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 15:51:29 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 15:51:29 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 15:51:30 MOUSE MOUSE:LCLICK DOWN -> lclick ok
+2026-10-13 15:51:34 mic switch -> ok=True [switched -> CABLE Output] (62ms)
+2026-10-13 15:51:34 VOICE start (hold 0x11+0x5b) ok=True
+2026-10-13 15:51:34 VOICE stop (release) ok=True
+2026-10-13 15:51:34 restore scheduled in 2.00s (gen=2)
+2026-10-13 15:51:34 mic restore scheduled (2.0s)
+2026-10-13 15:51:34 mic switch -> ok=True [already-virtual] (0ms)
+2026-10-13 15:51:34 VOICE start (hold 0x11+0x5b) ok=True
+2026-10-13 15:51:34 VOICE stop (release) ok=True
+2026-10-13 15:51:34 restore scheduled in 2.00s (gen=4)
+2026-10-13 15:51:34 mic restore scheduled (2.0s)
+2026-10-13 15:51:36 delayed restore -> ok=True [restored]
+2026-10-13 15:51:40 MOUSE MOUSE:MOVE:DOWN DOWN -> move DOWN on
+2026-10-13 15:51:40 MOUSE MOUSE:MOVE:DOWN UP -> move DOWN off
+2026-10-13 15:51:42 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:42 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:42 EXT APP:CYCLE -> cycle[z搴廬 -> chrome.exe ok (閲嶅缓 idx=1/3)
+2026-10-13 15:51:44 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:44 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:44 EXT APP:CYCLE -> cycle[z搴廬 -> explorer.exe ok (缁?idx=2/3)
+2026-10-13 15:51:45 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:45 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:45 EXT APP:CYCLE -> cycle[z搴廬 -> mintty.exe ok (缁?idx=3/3)
+2026-10-13 15:51:46 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:46 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:46 EXT APP:CYCLE -> cycle[z搴廬 -> powershell.exe ok (缁?idx=0/3)
+2026-10-13 15:51:46 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:46 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:46 EXT APP:CYCLE -> cycle[z搴廬 -> chrome.exe ok (缁?idx=1/3)
+2026-10-13 15:51:47 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:47 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:47 EXT APP:CYCLE -> cycle[z搴廬 -> explorer.exe ok (缁?idx=2/3)
+2026-10-13 15:51:47 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:47 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:47 EXT APP:CYCLE -> cycle[z搴廬 -> mintty.exe ok (缁?idx=3/3)
+2026-10-13 15:51:48 KEY APP:CYCLE debounced (0.35s window)
+2026-10-13 15:51:48 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:48 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:48 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:48 EXT APP:CYCLE -> cycle[z搴廬 -> powershell.exe ok (缁?idx=0/3)
+2026-10-13 15:51:48 KEY APP:CYCLE queued (ext)
+2026-10-13 15:51:48 KEY APP:CYCLE up ignored (ext: down-only)
+2026-10-13 15:51:48 EXT APP:CYCLE -> cycle[z搴廬 -> chrome.exe ok (缁?idx=1/3)
+2026-10-14 03:02:58 KEY FOCUS_INPUT queued (ext)
+2026-10-14 03:03:00 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-14 03:03:04 EXT FOCUS_INPUT -> FOCUS_INPUT NOEDIT (绐楀彛宸蹭慨澶? 鏈壘鍒拌緭鍏ユ) [winfix=raise]
+2026-10-14 03:03:04 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat
+2026-10-14 03:03:11 === remotehub-win receiver v1.10 starting ===
+2026-10-14 03:03:11 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-14 03:03:11 win_actions v1.14 loaded (uia=ready)
+2026-10-14 03:03:11 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-14 03:03:11 listening udp :8788 (handle_voice)
+2026-10-14 03:03:11 listening udp :8791 (handle_key)
+2026-10-14 03:04:28 KEY APP:chrome.exe queued (ext)
+2026-10-14 03:04:28 EXT APP:chrome.exe -> activate chrome.exe '鏂版爣绛鹃〉 - Google Chrome' ok=False
+2026-10-14 03:04:32 KEY FOCUS_INPUT queued (ext)
+2026-10-14 03:04:39 EXT FOCUS_INPUT -> FOCUS_INPUT NOEDIT (绐楀彛宸蹭慨澶? 鏈壘鍒拌緭鍏ユ) [winfix=raise]
+2026-10-14 03:04:41 KEY APP:WorkBuddy.exe queued (ext)
+2026-10-14 03:04:41 EXT APP:WorkBuddy.exe -> activate WorkBuddy.exe 'WorkBuddy' ok=False
+2026-10-14 03:04:45 KEY FOCUS_INPUT queued (ext)
+2026-10-14 03:04:51 EXT FOCUS_INPUT -> FOCUS_INPUT NOEDIT (绐楀彛宸蹭慨澶? 鏈壘鍒拌緭鍏ユ) [winfix=raise]
+2026-10-14 03:04:54 KEY APP:explorer.exe queued (ext)
+2026-10-14 03:04:54 EXT APP:explorer.exe -> activate explorer.exe '淇℃伅绯荤粺椤圭洰绠＄悊甯堣鏂?- 鏂囦欢璧勬簮绠＄悊鍣? ok=False
+2026-10-14 03:04:58 KEY FOCUS_INPUT queued (ext)
+2026-10-14 03:05:04 EXT FOCUS_INPUT -> FOCUS_INPUT NOEDIT (绐楀彛宸蹭慨澶? 鏈壘鍒拌緭鍏ユ) [winfix=raise]
+2026-10-14 03:05:07 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-14 03:05:07 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat
+2026-10-14 03:05:12 === remotehub-win receiver v1.10 starting ===
+2026-10-14 03:05:12 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-14 03:05:12 win_actions v1.14 loaded (uia=ready)
+2026-10-14 03:05:12 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-14 03:05:12 listening udp :8788 (handle_voice)
+2026-10-14 03:05:12 listening udp :8791 (handle_key)
+2026-10-14 03:06:02 KEY APP:TOGGLE queued (ext)
+2026-10-14 03:06:02 EXT APP:TOGGLE -> toggle lockapp.exe -> workbuddy.exe ok=False
+2026-10-14 03:06:04 MOUSE MOUSE:REPORT DOWN -> report written: C:\Users\username\remotehub-win\state\mouse-report.json
+2026-10-14 03:06:06 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-14 03:06:06 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat
+2026-10-14 03:06:12 === remotehub-win receiver v1.10 starting ===
+2026-10-14 03:06:12 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-14 03:06:12 win_actions v1.14 loaded (uia=ready)
+2026-10-14 03:06:12 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-14 03:06:12 listening udp :8791 (handle_key)
+2026-10-14 03:06:12 listening udp :8788 (handle_voice)
+2026-10-14 03:16:48 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-14 03:16:48 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat
+2026-10-14 03:16:53 === remotehub-win receiver v1.10 starting ===
+2026-10-14 03:16:53 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-14 03:16:53 win_actions v1.15 loaded (uia=ready)
+2026-10-14 03:16:53 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-14 03:16:53 listening udp :8788 (handle_voice)
+2026-10-14 03:16:53 listening udp :8791 (handle_key)
+2026-10-14 03:18:25 KEY FOCUS_INPUT queued (ext)
+2026-10-14 03:18:27 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-14 03:18:32 EXT FOCUS_INPUT -> FOCUS_INPUT NOEDIT+CLICK@1920,1987 (鏈壘鍒拌緭鍏ユ, 宸插厹搴曠偣鍑? [winfix=raise app=lockapp.exe]
+2026-10-14 03:18:32 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat
+2026-10-14 03:18:37 === remotehub-win receiver v1.10 starting ===
+2026-10-14 03:18:37 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-14 03:18:37 win_actions v1.15 loaded (uia=ready)
+2026-10-14 03:18:37 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-14 03:18:37 listening udp :8788 (handle_voice)
+2026-10-14 03:18:37 listening udp :8791 (handle_key)
+2026-10-14 04:42:13 KEY RUN:Downloads\update-win-receiver.bat queued (ext)
+2026-10-14 04:42:13 EXT RUN:Downloads\update-win-receiver.bat -> RUN -> Downloads\update-win-receiver.bat
+2026-10-14 04:42:18 === remotehub-win receiver v1.11 starting ===
+2026-10-14 04:42:18 python=3.12.10 user=username host=Windows dir=C:\Users\username\remotehub-win
+2026-10-14 04:42:18 win_actions v1.15 loaded (uia=ready)
+2026-10-14 04:42:18 win_audio_switch v1.2 loaded (2 capture devices)
+2026-10-14 04:42:18 presence: heartbeat start role=win [voice:8788,key:8791,audio:8789] -> T1_IP:8790 (every 2s; backoff to 15s if no ack)
+2026-10-14 04:42:18 listening udp :8788 (handle_voice)
+2026-10-14 04:42:18 listening udp :8791 (handle_key)

@@ -1,5 +1,29 @@
 #!/usr/bin/env python3
-# key_bridge.py — Mac 端「遥控器按键」注入桥 v1.12 (2026-10-12)
+# key_bridge.py — Mac 端「遥控器按键」注入桥 v1.15 (2026-10-13)
+# ------------------------------------------------------------------
+# v1.15（10-13 电源键连击切换设备, 承接 voice_fwd v2.7）: 新增设备切换 HUD 动作
+#   TARGET:SWITCH:ATV|MAC|WIN（仅 DOWN 触发）—— 调 remotehub_focus.lua v1.4
+#   switchHud()（hs.alert 浮层「🎯 已切到 X」+ 提示音）。T1 侧 voice_fwd v2.7
+#   在电源键连击提交后发送（切到 atv 发旧目标端 / 切到 mac·win 发新目标端）;
+#   路由复用鼠标串行 worker（保序、不阻塞 UDP; 对白名单外目标静默忽略）。
+#   Windows 对等 = win_receiver v1.10 + win_actions v1.14（Tk 浮层）。
+# ------------------------------------------------------------------
+# v1.14（10-13 实测反馈修复轮）: 新增模式提示动作 MOUSE:MODE:ON|OFF —— 调
+#   remotehub_focus.lua v1.3 mouseHud()（hs.alert 浮层「🖱 鼠标模式 / ⌨ 键盘模式」+
+#   提示音）。治用户反馈「模式切换无提示, 按了不知道生效没有」; T1 侧 voice_fwd v2.6
+#   在切换 / 模式内单按 #41 时主动发送。仅 DOWN 触发（对齐 LCLICK 等既有语义）。
+#   Windows 对等 = win_receiver v1.8 + win_actions v1.12（Tk HUD）。
+# ------------------------------------------------------------------
+# v1.13（10-13）: 新增鼠标模式（MOUSE:* 动作 —— 遥控器 dpad 模拟鼠标, 用户需求）:
+#   · MOUSE:MOVE:UP|DOWN|LEFT|RIGHT  —— 滑行移动（按住=连续滑, 松开停）
+#   · MOUSE:SCROLL:UP|DOWN           —— 连续滚动（按住=连续滚）
+#   · MOUSE:LCLICK / MOUSE:RCLICK    —— 当前光标位置点击（仅 DOWN 触发）
+#   执行 = Hammerspoon remotehub_focus.lua v1.2 鼠标执行器（mouseStart/Stop/Click/
+#   scrollStart/Stop, 状态挂 _G 全局单例跨 hs 调用存活）; 滑行参数两端一致
+#   （加速 700px/s² / 上限 1600px/s / 1.2s 无刷新看门狗自停 —— 保活包断流即刹车）。
+#   路由: 专用串行 worker（保序: DOWN/保活/UP 依序执行; 队列满丢弃 —— 保活语义天然
+#   容丢, UP 丢失由看门狗兜底）。T1 侧 voice_fwd v2.5 模式层产生（0.4s 保活节奏）。
+#   Windows 对等 = win_receiver v1.7 + win_actions v1.11。
 # ------------------------------------------------------------------
 # v1.12（10-12）: 新增 APP:CLOSE ——「关闭当前前台应用」（用户需求: 长按电源键关闭当前应用;
 #   keymap #116 long=APP:CLOSE 生产绑定）。实现 = app_switch v1.2 close 子命令
@@ -117,6 +141,7 @@
 
 import itertools
 import os
+import queue
 import re
 import socket
 import subprocess
@@ -133,7 +158,7 @@ UDS_LOCAL = "/tmp/key_bridge_cli.sock"   # 本进程接收地址（⚠ macOS 上
 SOCK_TIMEOUT = 0.5                       # serve 应答超时
 SERVE_RETRY_WINDOW = 15.0                # serve 失联熔断窗口（期间走 submit 兜底）
 PORT = 8791
-VERSION = "1.12"          # 2026-10-12: 版本号唯一来源（banner/status 共用; 修 STATUS 残留 v1.8）
+VERSION = "1.15"          # 2026-10-13: TARGET:SWITCH:* 切换 HUD（v1.12: 版本号唯一来源, banner/status 共用）
 UID = os.getuid()
 REMOVE_DELAY = 1.0        # submit 后延迟 N 秒 remove（注入程序 <0.2s）
 STUCK_TIMEOUT = 20.0      # 卡键自愈: DOWN 后无活动超时秒数
@@ -513,15 +538,82 @@ def do_run(cmd):
         return False
 
 
+# ---------- v1.13: 鼠标模式（MOUSE:* -> Hammerspoon remotehub_focus.lua） ----------
+# v1.15: TARGET:SWITCH:*（设备切换 HUD）同走本通道 —— 一次性小动作, 与鼠标动作共用串行 worker。
+# 滑行/滚动为「按住」语义: DOWN 启动 / 保活 DOWN 刷新 / UP 停止。
+# 执行走专用串行 worker（保序）——hs 调用 ~30-80ms, 0.4s 保活节奏余量充足;
+# 队列满丢弃（保活容丢; UP 丢失由 lua 侧 1.2s 看门狗自停兜底）。
+MOUSE_HS_TIMEOUT = 5      # 鼠标动作 hs 调用超时（比默认 8s 短——保活包过期无意义）
+_mouse_q = queue.Queue(maxsize=64)
+
+
+def _mouse_cmd(name, phase):
+    """动作 -> lua 调用片段; 非法/N.A. 返回 None（phase 大小写宽容）。"""
+    a = (name or "").upper()
+    ph = (phase or "").upper()
+    if a.startswith("MOUSE:MOVE:"):
+        d = a.rsplit(":", 1)[-1].lower()
+        if d not in ("up", "down", "left", "right"):
+            return None
+        return f'mouseStart("{d}")' if ph == "DOWN" else f'mouseStop("{d}")'
+    if a.startswith("MOUSE:SCROLL:"):
+        d = a.rsplit(":", 1)[-1].lower()
+        if d not in ("up", "down"):
+            return None
+        return f'scrollStart("{d}")' if ph == "DOWN" else f'scrollStop("{d}")'
+    if a == "MOUSE:LCLICK":
+        return 'mouseClick("left")' if ph == "DOWN" else None
+    if a == "MOUSE:RCLICK":
+        return 'mouseClick("right")' if ph == "DOWN" else None
+    if a in ("MOUSE:MODE:ON", "MOUSE:MODE:OFF"):      # v1.14: HUD 提示（仅 DOWN）
+        if ph != "DOWN":
+            return None
+        return 'mouseHud("on")' if a.endswith("ON") else 'mouseHud("off")'
+    if a.startswith("TARGET:SWITCH:"):                # v1.15: 设备切换 HUD（仅 DOWN）
+        if ph != "DOWN":
+            return None
+        t = a.rsplit(":", 1)[-1].lower()
+        if t not in ("atv", "mac", "win"):
+            return None
+        return f'switchHud("{t}")'
+    return None
+
+
+def _mouse_worker():
+    """串行执行鼠标动作（顺序敏感: start/保活/stop 不可乱序）。"""
+    while True:
+        name, phase = _mouse_q.get()
+        try:
+            fn = _mouse_cmd(name, phase)
+            if fn is None:
+                log(f"  -> [mouse] {name} {phase} (无操作/忽略)")
+                continue
+            ok, out = _hs(f'return dofile("{FOCUS_LUA}").{fn}', timeout=MOUSE_HS_TIMEOUT)
+            tag = "hud" if (name or "").upper().startswith("TARGET:SWITCH") else "mouse"
+            log(f"  -> [{tag}] {name} {phase} {'OK' if ok else 'FAIL'} | {out}")
+        except Exception as e:  # noqa: BLE001
+            log(f"  !! [mouse] 执行异常: {e}")
+
+
+def mouse_dispatch(name, phase):
+    """收包线程入口: 仅入队（µs 级）。返回 False=队列满丢弃。"""
+    try:
+        _mouse_q.put_nowait((name, phase))
+        return True
+    except queue.Full:
+        return False
+
+
 def main():
     cleanup_stale_jobs()
+    threading.Thread(target=_mouse_worker, daemon=True, name="mouse-worker").start()
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.bind(("0.0.0.0", PORT))
     s.settimeout(0.5)
     log(f"key_bridge v{VERSION} 已启动: UDP :{PORT} | 注入=serve常驻({'在线' if serve_alive() else '离线(将走submit兜底)'})+submit兜底 | "
-        f"键表 {len(KEYMAP)} 项 + APP动作(切换/轮询/选择器/关闭) + FOCUS_INPUT(跳输入框) + CLICK(点击焦点元素) + URL/RUN(开网页·跑命令) | 卡键自愈 {STUCK_TIMEOUT:.0f}s | submit-job {REMOVE_DELAY:.0f}s 即时回收")
-    log(f"  接收: 'KEY <NAME> DOWN|UP' / 'KEY APP:<名称>|TOGGLE|NEXT|CYCLE|PICK|CLOSE DOWN' / 'KEY FOCUS_INPUT|CLICK DOWN' / 'KEY URL:<网址>|RUN:<命令> DOWN' / 'RAW <nxkc> DOWN|UP'(诊断) "
+        f"键表 {len(KEYMAP)} 项 + APP动作(切换/轮询/选择器/关闭) + FOCUS_INPUT(跳输入框) + CLICK(点击焦点元素) + URL/RUN(开网页·跑命令) + MOUSE(鼠标模式:滑行/滚动/点击/模式提示) + TARGET:SWITCH(设备切换HUD) | 卡键自愈 {STUCK_TIMEOUT:.0f}s | submit-job {REMOVE_DELAY:.0f}s 即时回收")
+    log(f"  接收: 'KEY <NAME> DOWN|UP' / 'KEY APP:<名称>|TOGGLE|NEXT|CYCLE|PICK|CLOSE DOWN' / 'KEY FOCUS_INPUT|CLICK DOWN' / 'KEY URL:<网址>|RUN:<命令> DOWN' / 'KEY MOUSE:MOVE:<dir>|SCROLL:<dir>|LCLICK|RCLICK|MODE:ON|OFF DOWN|UP' / 'KEY TARGET:SWITCH:<ATV|MAC|WIN> DOWN' / 'RAW <nxkc> DOWN|UP'(诊断) "
         f"| picker路由: {', '.join(sorted(PICKER_KEYS))} (socket={PICKER_SOCK}) | 注入输出→ {INJECT_LOG} | 诊断: ping / status")
 
     # name -> {"down": bool, "last": ts}  卡键自愈用
@@ -586,6 +678,11 @@ def main():
                     log(f"RX {peer} -> {name} DOWN ({'已触发' if ok2 else '防抖忽略/失败'})")
                 else:
                     log(f"RX {peer} -> {name} UP (忽略)")
+            elif name.startswith(("MOUSE:", "TARGET:SWITCH:")):
+                # v1.13: 鼠标模式 —— 滑行/滚动按住语义（DOWN 启动/UP 停止）; 点击仅 DOWN
+                # v1.15: TARGET:SWITCH:<ATV|MAC|WIN> 切换 HUD 复用同一串行 worker
+                if not mouse_dispatch(name, phase):
+                    log(f"RX {peer} -> {name} {phase} (辅助队列满, 丢弃)")
             elif name not in KEYMAP:
                 log(f"RX {peer} -> {text!r} (未知动作名, 忽略)")
             else:

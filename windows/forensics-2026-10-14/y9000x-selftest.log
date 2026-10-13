@@ -1,0 +1,10 @@
+win_actions v1.15 selftest
+platform: win32 | dpi: per-monitor-v2 | uia: ready
+top-level windows (filtered): 5 | apps: 4
+  chrome.exe         | 新标签页 - Google Chrome
+  WorkBuddy.exe      | WorkBuddy
+  mintty.exe         | MINGW64:/                                   
+  explorer.exe       | 信息系统项目管理师论文 - 文件资源管理器
+tkinter: v8.6 ok (APP:PICK 图标网格可用)
+uwp icon path: shell:AppsFolder via IShellItemImageFactory ready
+focused element: (none / filtered)

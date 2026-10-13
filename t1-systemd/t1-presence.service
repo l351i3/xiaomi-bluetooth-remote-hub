@@ -1,0 +1,16 @@
+[Unit]
+Description=T1 presence registry (device online heartbeat, UDP :8790)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/remote-hub
+ExecStart=/usr/bin/python3 -u /root/remote-hub/presence.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log.hdd/presence.log
+StandardError=append:/var/log.hdd/presence.log
+
+[Install]
+WantedBy=multi-user.target

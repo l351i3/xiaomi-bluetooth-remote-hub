@@ -1,11 +1,56 @@
 #!/usr/bin/env python3
-"""relay v0.10 按键状态机离线测试（v2 三份 keymap; mock queue; 临时改 voice_target 后复原）"""
+"""relay v0.12 按键状态机离线测试（v2 三份 keymap; mock queue; 临时改 voice_target 后复原）
+v0.11: 电源连击切换断言组（1击=__POWER__ / 2击=mac / 3击=win; 窗口提交; 闸门开关;
+       离台丢弃; HUD 目标）+ pyatv 最小桩（Mac 本地无 pyatv 也可运行）。
+v0.12: 语音键配置驱动断言（默认=开 YouTube / 改绑跟随 / 清空=无动作; mac 目标忽略）。"""
 import asyncio
 import json
+import os
 import struct
 import sys
+import types
 
-sys.path.insert(0, "/root/remote-hub")
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)   # 本地/Mac 与 T1 现网均可运行
+
+
+def _ensure_pyatv_stub():
+    """pyatv 缺失（Mac 本地跑）时注入最小桩 —— ATV 运行时在测试中不会被调用。"""
+    try:
+        import pyatv  # noqa: F401
+        return
+    except Exception:
+        pass
+    pk = types.ModuleType("pyatv")
+    const = types.ModuleType("pyatv.const")
+
+    class InputAction:
+        SingleTap = "SingleTap"
+        DoubleTap = "DoubleTap"
+
+    class PowerState:
+        On = "On"
+        Off = "Off"
+
+    class Protocol:
+        Companion = "Companion"
+        AirPlay = "AirPlay"
+        MRP = "MRP"
+
+    const.InputAction = InputAction
+    const.PowerState = PowerState
+    const.Protocol = Protocol
+    pk.const = const
+    protos = types.ModuleType("pyatv.protocols")
+    protos.__path__ = []
+    mrp = types.ModuleType("pyatv.protocols.mrp")
+    mrp._KEY_LOOKUP = {}
+    mrp._send_hid_key = lambda *a, **k: None
+    sys.modules.update({"pyatv": pk, "pyatv.const": const,
+                        "pyatv.protocols": protos, "pyatv.protocols.mrp": mrp})
+
+
+_ensure_pyatv_stub()
 import relay_min as r  # noqa: E402
 
 EVENTS = []
@@ -47,6 +92,11 @@ async def main():
     relay.queue = FakeQueue()
     relay._cfg_mtime = relay._stat_cfg_mtime()
     relay._last_target = "atv"
+    relay._power_count = 0            # v0.11
+    relay._power_timer = None
+    relay.hud_sock = None
+    HINTS = []
+    relay._send_target_hint = lambda t: (HINTS.append(t), True)[1]   # 桩: HUD 不出网（本地/T1 均安全）
 
     atv_keys = relay.cfg["targets"]["atv"]["keys"]
 
@@ -109,17 +159,34 @@ async def main():
         relay._handle_event(ev(103, 0))
         check("mac 目标普通键忽略", EVENTS[:], [])
 
-        # 6. 语音键 target=mac -> 忽略
+        # 6. 语音键 target=mac -> 忽略（v0.12: 走通用分派, 非 atv 目标全忽略）
         EVENTS.clear()
         relay._handle_event(ev(63, 1))
         relay._handle_event(ev(63, 0))
         check("语音键 mac=忽略", EVENTS[:], [])
 
-        # 7. 语音键 target=atv -> YouTube
+        # 7. 语音键 target=atv -> 默认 YouTube（v0.12: 配置驱动, single 无 long/double 按下即发）
         EVENTS.clear()
         set_target("atv")
         relay._handle_event(ev(63, 1))
         check("语音键 atv=YouTube", EVENTS[:], [("__LAUNCH__:com.google.ios.youtube", 63)])
+
+        # 7b. 语音键改绑跟随（临时改内存配置 -> 极空间; 不写盘）
+        EVENTS.clear()
+        relay.cfg["targets"]["atv"]["keys"]["63"]["single"] = "__LAUNCH__:com.zentraedi.zspaceTV"
+        relay._handle_event(ev(63, 1))
+        await settle(0.05)
+        relay._handle_event(ev(63, 0))
+        check("语音键 改绑->极空间", EVENTS[:], [("__LAUNCH__:com.zentraedi.zspaceTV", 63)])
+
+        # 7c. 语音键清空 -> 无动作（用户可关闭该键; 不再有硬编码兜底）
+        EVENTS.clear()
+        relay.cfg["targets"]["atv"]["keys"]["63"]["single"] = None
+        relay._handle_event(ev(63, 1))
+        await settle(0.05)
+        relay._handle_event(ev(63, 0))
+        check("语音键 清空->无动作", EVENTS[:], [])
+        relay.cfg["targets"]["atv"]["keys"]["63"]["single"] = "__LAUNCH__:com.google.ios.youtube"
 
         # 8. 双击（临时改 v2 内存配置: atv 158 double; 不写盘）
         EVENTS.clear()
@@ -175,6 +242,94 @@ async def main():
                        "keys": {"28": {"single": "select", "repeat": False}}}, f)
         c = r._load_cfg_file(v1p)
         check("v1 归一化->atv", c["targets"]["atv"]["keys"]["28"]["single"], "select")
+
+        # 13. v0.11 电源连击切换（1击=__POWER__ / 2击=mac / 3击=win）
+        check("连击 闸门值(现网)", (relay._akeys().get("116") or {}).get("single"), "TARGET:SWITCH")
+
+        # 13a. 单击: 不即时; 窗口期满 -> __POWER__
+        set_target("atv")
+        relay.key_state.clear()
+        EVENTS.clear()
+        HINTS.clear()
+        relay._handle_event(ev(116, 1))
+        await settle(0.1)
+        check("连击 单击不即时", EVENTS[:], [])
+        await settle(0.5)
+        check("连击 单击期满 -> 电源切换", EVENTS[:], [("__POWER__", 116)])
+        relay._handle_event(ev(116, 0))
+        await settle(0.05)
+        check("连击 单击 up 无额外事件", EVENTS[:], [("__POWER__", 116)])
+
+        # 13b. 双击: 窗口内二击 -> 切 mac + HUD; 绝不出 __POWER__
+        EVENTS.clear()
+        HINTS.clear()
+        set_target("atv")
+        relay._handle_event(ev(116, 1))
+        await settle(0.08)
+        relay._handle_event(ev(116, 0))
+        await settle(0.04)
+        relay._handle_event(ev(116, 1))
+        await settle(0.08)
+        relay._handle_event(ev(116, 0))
+        check("连击 双击中不出事件", EVENTS[:], [])
+        await settle(0.5)
+        check("连击 双击期满 -> 切 mac", get_target(), "mac")
+        check("连击 双击无 __POWER__ 事件", EVENTS[:], [])
+        check("连击 双击 HUD 目标", HINTS[:], ["mac"])
+
+        # 13c. 三击: 第 3 击立即提交 -> 切 win（免等窗口）
+        EVENTS.clear()
+        HINTS.clear()
+        set_target("atv")
+        relay._handle_event(ev(116, 1))
+        await settle(0.05)
+        relay._handle_event(ev(116, 0))
+        await settle(0.03)
+        relay._handle_event(ev(116, 1))
+        await settle(0.05)
+        relay._handle_event(ev(116, 0))
+        await settle(0.03)
+        relay._handle_event(ev(116, 1))
+        await settle(0.1)
+        check("连击 三击立即切 win", get_target(), "win")
+        check("连击 三击 HUD", HINTS[:], ["win"])
+        relay._handle_event(ev(116, 0))
+        await settle(0.55)
+        check("连击 三击后无额外提交", (get_target(), EVENTS[:]), ("win", []))
+
+        # 13d. 闸门撤下（single 改回 __POWER__）-> 旧语义（按下即发, 无连击等待）
+        set_target("atv")
+        EVENTS.clear()
+        HINTS.clear()
+        _bak116 = relay.cfg["targets"]["atv"]["keys"]["116"]
+        relay.cfg["targets"]["atv"]["keys"]["116"] = {"single": "__POWER__", "double": None,
+                                                      "long": None, "repeat": False}
+        relay._handle_event(ev(116, 1))
+        check("连击 闸门撤下 -> 按下即发", EVENTS[:], [("__POWER__", 116)])
+        await settle(0.55)
+        check("连击 闸门撤下 无二次提交", EVENTS[:], [("__POWER__", 116)])
+        relay._handle_event(ev(116, 0))
+        relay.cfg["targets"]["atv"]["keys"]["116"] = _bak116
+
+        # 13e. 目标≠atv 时 #116 全忽略（连击层不参与 —— 交 voice_fwd 侧）
+        set_target("mac")
+        EVENTS.clear()
+        HINTS.clear()
+        relay._handle_event(ev(116, 1))
+        await settle(0.1)
+        relay._handle_event(ev(116, 0))
+        await settle(0.55)
+        check("连击 mac 目标忽略", (EVENTS[:], HINTS[:], get_target()), ([], [], "mac"))
+
+        # 13f. 计数期间离开 atv -> 提交丢弃（防串台）
+        set_target("atv")
+        EVENTS.clear()
+        HINTS.clear()
+        relay._handle_event(ev(116, 1))
+        await settle(0.05)
+        set_target("mac")
+        await settle(0.6)
+        check("连击 离台提交丢弃", (EVENTS[:], HINTS[:]), ([], []))
     finally:
         set_target(orig_target)
 

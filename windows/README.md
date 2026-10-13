@@ -1,4 +1,4 @@
-# Windows（Windows）链路维护笔记 — 2026-10-12 v1.12 长按关闭版
+# Windows（Windows）链路维护笔记 — 2026-10-14 v1.11 心跳 + v1.15 兜底点击版
 
 > 状态：**按键链 ✅**（T1 `voice_fwd.WIN_IP=WINDOWS_IP` 生效；PING 双口 PONG）；
 > **语音音频链 ✅**；**扩展动作 v1.2 ✅ 已实机验收**（4/4；「最小化→还原」前台修复已合入上游）；
@@ -11,6 +11,120 @@
 > **URL:/RUN: 扩展动作已交付**（T1 网页台 v2.10 可绑「打开网页…/执行命令…」）；
 > **win 键位已与 mac 100% 对齐**（10-11 21:31，全量 diff=0：补 #28 长按 CLICK / #41 FOCUS_INPUT / #116 APP:workbuddy）。
 > v1.11 更新以用户侧部署为准（推荐双击 `update-win-receiver.bat`）；T1:8000 分发 server 保留备用。
+> **★ 鼠标模式（win_receiver v1.9 + win_actions v1.13）= ✅ 已上线 + 用户复测通过**（2026-10-13：
+> 13:29 经 RUN 通道「零到场」远程升级（v1.7+v1.11）→ 用户实测报五问 → 同日三轮升级修复
+> （v1.8+v1.12 → v1.9+v1.13）；**元凶 = 跨模块 SendInput 类型冲突**（两模块各定义 INPUT 类
+> 共享 `ctypes.windll.user32`，argtypes 互相覆盖 → 鼠标点击/滚轮全静默失败；探针 `EXC TypeError`
+> → 修复后 `ok(1)` 实证）；**15:1x 用户复测：鼠标速度正常 / OK 长按右键 / 主页 / 返回 全部 OK**）。
+> **★ 设备切换 HUD（win_receiver v1.10 + win_actions v1.14）= ✅ 已上线 + 用户复测通过**（2026-10-13 15:1x：
+> T1 电源键连击（1 击=ATV / 2 击=Mac / 3 击=Win）时本机弹「🎯 已切到 X」浮层；走 MOUSE:* 同通道；
+> 15:4x 用户复测「可以切换了」）。
+> **★ FOCUS_INPUT 兜底点击（win_actions v1.15）= ✅ 已上线**（2026-10-14 03:16 经 RUN 通道升级 +
+> 03:18 端到端实证 `NOEDIT+CLICK@1920,1987 [winfix=raise app=lockapp.exe]`；详见下方 v1.15 节）。
+> **★ presence 心跳（win_receiver v1.11）= ✅ 已上线**（2026-10-14 04:42 经 RUN 通道零到场升级；单代理报
+> voice/key/audio 至 T1 :8790——T1 侧离线闸门 + 去硬编码 IP；`presence_beat.py` 随 update 脚本分发。
+> **注意**：主档在 `remote-hub/presence_beat.py`，改后需同步本目录副本（随 8000 分发到 Win）。
+> 鼠标模式 = 遥控器长按直播键切换：方向=滑行移光标 / OK 短=左键·长=右键 / 音量±=滚动 / 返回=退出
+> / 模式内**电源·主页照常可用**（可随时跳出去打开应用）/ 开·关·模式内单按均弹 **HUD 浮层提示**
+> （T1 `voice_fwd` v2.6 发 `MOUSE:MODE:*`；Mac 对等端 lua v1.3 + key_bridge v1.14 同日上线）。
+
+## v1.11 变更（2026-10-14）—— presence 心跳（在线注册 / T1 侧离线闸门）
+
+- `presence_beat.start("win", [("voice",8788), ("key",8791), ("audio",8789)])` —— 启动即拍、
+  每 2s 向 T1 :8790 注册（ACK/退避由库处理）；首拍即让 T1 学习本机 IP。
+- T1 侧（voice_fwd v2.9 / atvv_service v1.2）据此：设备离线→暂停投递（消灭「假已发送」）、
+  投递地址心跳 IP 优先（DHCP 变更自动跟上）；网页台主页可看在线状态点。
+- 单代理形态（对齐 Mac presence-beater）：本进程代报全部 svc。
+- 配套分发：`update-win-receiver.ps1` 增载 `presence_beat.py`（3 文件 → 4 文件）；加载失败
+  仅降级「无心跳」，主链路不受影响。
+- 测试：actions 459 / offline 22 / smoke 28 全绿；04:42 升级后 post 指纹 sha256 逐字节一致
+  + T1 侧「win 上线」日志实证。
+
+## v1.15 变更（2026-10-14）——★ FOCUS_INPUT 兜底点击（微信类应用可用）+ app 观测
+
+- **背景（用户反馈）**：「无论在 Mac 还是在 Windows 上，鼠标模式下按焦点聚焦键不灵、不好使，
+  甚至切换到键盘模式，焦点还是不好用」。直注实测：chrome / WorkBuddy / explorer / lockapp
+  **四应用全部 `NOEDIT`**——不是微信特例，而是五段策略（窗口修复/缓存/网格/树）全 miss 后
+  **无兜底动作**的普适缺陷（Win 侧根因；Mac 同源缺陷在 lua v1.5 同步修复 → **v1.6 深挖再修正：
+  前台提升防遮挡 + 兜底落点距窗底 105px**，见 `hammerspoon-focus.md` 沿革 v1.6；
+  鼠标模式内 #41 被 T1 吸收是另一根因，在 T1 voice_fwd v2.8 修复）。
+- **win_actions v1.15**：五段全 miss（`elem is None`）时改为**底部中央兜底点击**
+  （`(l+int(w*0.5), t+int(h*0.92))` —— 聊天/评论类输入区几何假设；y 钳制不超过 `b-4`），
+  返回 `NOEDIT+CLICK@x,y (未找到输入框, 已兜底点击)`；点击失败则如实返回普通 `NOEDIT`（不谎报）。
+  测试打桩可经新增第 4 参数 `click_at=None` 注入（None=旧行为，向后兼容）。
+- **`_click_preserve_cursor(x, y)`**：兜底点击包装——点击前记录光标 → `mouse_click` → 恢复原位置
+  （遥控器操作不应留下光标可见位移）。
+- **`do_focus_input` 结果串新增 `app=<exe>` 观测字段**：治「NOEDIT 时不知道前台是谁」——
+  `do_app_activate` 无文件日志，10-14 凌晨 03:03 四轮直注曾无法判定前台（教训登记）。
+- **测试**：`actions_offline_test.py` **459/459**（+11 条：F2 全 miss 兜底点击 + 坐标 /
+  F3 点击失败如实返回 / F4 矮窗 y 钳制 + §22 源码约定守护 7 条）。
+- **部署取证**：03:16:5x 经 RUN 通道升级（pre/post 指纹 `win_actions.py size=143055` +
+  `VERSION = "1.15"` + `win_actions v1.15 loaded (uia=ready)`）；03:18:32 端到端实证
+  `EXT FOCUS_INPUT -> FOCUS_INPUT NOEDIT+CLICK@1920,1987 (未找到输入框, 已兜底点击) [winfix=raise app=lockapp.exe]`
+  （锁屏态 3840×2160 虚拟屏 → 0.92 高度坐标 1987 正确 / `app=` 字段生效 / 新路径贯通）。
+- **配套版本**：T1 `voice_fwd` v2.8（模式内 #41 放行 + 实时目标）+ Mac `remotehub_focus.lua` v1.5
+  （同款兜底点击 `(0.5, 0.92)` + 光标恢复）→ **v1.6**（前台提升 + 距底 105px；Win 侧是否对称调整
+  兜底坐标待用户复测后定）。
+
+## v1.10 + v1.14 变更（2026-10-13）——电源键连击切换设备（HUD）
+
+- **背景**：用户提出「每次在几个设备之间切换用网页还是有些麻烦」→ T1 电源键连击直切
+  （**1 击=ATV / 2 击=Mac / 3 击=Win**；voice_fwd v2.7 / relay_min v0.11 双侧连击层；
+  电源键短按原绑定「打开 workbuddy」不再保留，长按=关闭应用不变）。
+  切到本机（win）、或从 win 切走（切到 atv 时提示发「旧目标端」）都会收到 `KEY TARGET:SWITCH:<X> DOWN`。
+- **win_receiver v1.10**：`handle_key` 的 `MOUSE:*` 专用路由扩为 `("MOUSE:", "TARGET:SWITCH:")`
+  双前缀——同通道直呼 `win_actions.mouse_control`（不进扩展动作 down-only 管道，无防抖；
+  日志 tag 区分 MOUSE/SWITCH；旧版 win_actions 对未知动作安全忽略，前后兼容）。
+- **win_actions v1.14**：`TARGET:SWITCH:ATV|MAC|WIN`（仅 DOWN）→ 复用 v1.12 HUD 体系
+  （`_hud_open` 抽取通用 `_hud_open_text(txt)`，与模式 HUD 共用）弹「🎯 已切到 ATV/macOS/Windows」
+  Tk 浮层（1.1s 自动消失 + 提示音；Tk 不可用静默降级 `no-tk`——切换本体在 T1 侧落盘，仅提示缺失）。
+  非法目标/UP 忽略（`ERR bad-target` / `switch hud ignored (up)`）。
+- **测试**：`actions_offline_test.py` **448/448**（+§21 23 条：分派矩阵 / 非法目标 / 大小写宽容 /
+  非 Win no-tk 降级 / 取证计数 / win_actions + win_receiver 源码约定守护）。
+- **部署**：经 RUN 通道升级（同既有流程；当日已上线，2026-10-13 15:4x 用户复测「可以切换了」✅）。
+
+## v1.9 + v1.13 变更（2026-10-13）——★ 元凶级修复：跨模块 SendInput 类型冲突 + 模式 HUD + 滑行手感
+
+- **根因（「OK 键完全没反应」的全部真相）**：`ctypes.windll.user32` 是**进程级共享对象**；
+  `win_receiver` 与 `win_actions` **各自定义 INPUT 结构类**并各自设置 `SendInput.argtypes`
+  （后加载的 receiver 覆盖）→ win_actions 侧全部 SendInput 调用（**点击 / 滚轮 / Alt tap**）
+  以跨类指针被 ctypes 拒绝，抛 `TypeError: expected LP_INPUT instance instead of pointer to
+  INPUT` 被 `except: return False` 吞 → **静默全灭**。键盘（receiver 自己的类）正常
+  ——「鼠标能滑行、键盘可用，唯独点击毫无反应」之谜。
+- **取证**：v1.12 内置 `MOUSE:REPORT` 探针（零位移 `MOUSEEVENTF_MOVE`，无害）经 RUN 通道回传
+  `state/mouse-report.json` **一击命中**（`"EXC argument 2: TypeError..."`）。
+- **修复**：win_actions v1.13 结构定义上移通用层（跨平台）+ win_receiver v1.9 **复用同一类对象**
+  （全进程单类 = 两模块声明/调用全同型）；4 处静默 `except` 补 `_logv` 落盘；REPORT 增
+  `input_class_module` 指纹（修复后恒为 `"win_actions"`）。**实机验证：探针 `EXC` → `ok(1)`**。
+- **连带纠正**：`force_foreground` 注释「实测 Alt 敲击无效」实为同 bug——Alt tap 从未成功过，
+  现恢复可用（前台锁定多一条解锁手段）。
+- **v1.12 随行交付**：滑行速度**事件驱动清零**（治「特别快、无法小距离移动」——遥控器方向键是
+  离散按压流，旧版唯一清零点在 `step()`，up 间隙内 worker 提前 continue 不调 step → 速度跨
+  按压累积；现在 `stop()/_sweep()` 即清零，对齐 Mac lua `stopTimer` 语义；
+  §19a 对照：11.67 vs 旧 23.33 px/step）；**模式 HUD**（`MOUSE:MODE:ON|OFF` → 复用 picker
+  Tk 线程弹「鼠标模式/键盘模式」浮层 + MessageBeep；实机 `mode hud on/off (tk)` ✅）。
+- **测试**：`actions_offline_test.py` **425/425**（+§19 速度/MODE/REPORT +§20 类统一运行时
+  断言 27 条〔`win_receiver.INPUT is win_actions.INPUT` 等〕）；`offline_test.py` 22/22。
+  升前/升后取证自动回传（证据存 `windows/forensics-2026-10-13/`）。
+
+## v1.7 + v1.11 变更（2026-10-13）——鼠标模式（遥控器 dpad 模拟鼠标）
+
+- **win_receiver v1.7**：`handle_key` 新增 `MOUSE:*` 前置分支（VK 查表 / picker 路由之前）
+  → `handle_mouse` → `win_actions.mouse_control`。MOVE/SCROLL 是 **DOWN+UP 双向 hold 语义**
+  （不能走扩展动作 down-only 管道，故独立分流）；不做防抖——重复 DOWN 是保活刷新（幂等），
+  UP 是配对刹车（不可去重）。
+- **win_actions v1.11**：`MouseGlide` 滑行积分器（策略层纯逻辑，离线可测）+ `mouse_control`
+  分发入口 + `mouse_button_click`（当前位置左/右键 SendInput，不移动光标）+ `_send_wheel`
+  （滚轮 `WHEEL_DELTA=120` / `SCROLL_NPS=10` notch/s 对齐 Mac 900px/s 观感）。滑行参数与
+  Mac lua **逐条对齐**：700px/s² / 1600px/s 上限 / 1.2s 无刷新看门狗自停 / 斜向 √2 速
+  （不归一化）/ 虚拟屏包围盒夹取 / 60Hz 常驻推进线程（懒启动）。
+- **测试**：`actions_offline_test.py` **367/367**（+38：加速离散积分 / 速度上限 / 停止即停 /
+  看门狗 / 对向相消 / 斜向 / 边界夹取 / 滚动速率与方向 / 保活刷新 / stop_all +
+  `mouse_control` 分派矩阵 + 源码约定守护）。
+- **部署（待 Windows 上线）**：照既有流程替换 `win_actions.py` + `win_receiver.py` 两件并重启
+  计划任务（或将两文件放入更新包同目录后双击 `update-win-receiver.bat`）。无新增依赖、
+  无注册表/权限变更。
+- 键盘 / 语音 / 扩展动作 / picker 路由行为全部不变（v1.6 语义原样保留）。
 
 ## v1.10 变更（2026-10-12）——长按电源键「关闭当前应用」（`win_actions.py` v1.10）
 
@@ -250,10 +364,10 @@
 
 | 文件 | 用途 |
 |---|---|
-| `win_receiver.py` | 按键/语音触发接收端主程序（跑在 Windows；**v1.6** 防抖首击修复 + 选择器 v2 + URL/RUN 保真 + 麦克风切换） |
+| `win_receiver.py` | 按键/语音触发接收端主程序（跑在 Windows；**v1.10** TARGET:SWITCH 设备切换路由 + **v1.9** ★ SendInput 类统一修复 + MOUSE:* 路由 + 防抖首击修复 + 选择器 v2 + URL/RUN 保真 + 麦克风切换） |
 | `win_audio_switch.py` | **默认录音设备按需切换**（**v1.2**；方案 V：按下→CABLE / 松开延迟切回 / 自愈；v1.2 = COM 初始化裸 Win32 修复） |
-| `win_actions.py` | **扩展动作实现**（CLICK/FOCUS_INPUT/APP:*/URL:/RUN:；**v1.10**：★ 长按关闭 APP:CLOSE〔WM_CLOSE 优雅关闭〕+ v1.9 选中格图标融合 + v1.8 灰调配色 + picker v2.4 网格导航 + UWP 真实图标） |
-| `actions_offline_test.py` | **扩展动作离线测试**（**329/329**；FakeBackend 打桩 + 布局/图标/名称/UWP/包应用路径/光学/长名截断滚动/网格导航/close_poll 关闭轮询纯逻辑 + 源码约定守护, 无需 Windows） |
+| `win_actions.py` | **扩展动作实现**（CLICK/FOCUS_INPUT/APP:*/URL:/RUN:/MOUSE:*/TARGET:SWITCH:*；**v1.15** FOCUS_INPUT 兜底点击 + app 观测 + v1.14 设备切换 HUD + v1.13 ★ SendInput 类统一修复 + v1.12 速度清零/HUD/取证 + v1.11 滑行引擎 + v1.10 长按关闭 + picker v2 系列外观） |
+| `actions_offline_test.py` | **扩展动作离线测试**（**459/459**；FakeBackend 打桩 + 布局/图标/名称/UWP/包应用路径/光学/长名截断滚动/网格导航/close_poll 关闭轮询/设备切换 HUD/聚焦兜底点击 纯逻辑 + 源码约定守护, 无需 Windows） |
 | `audio_switch_offline_test.py` | **麦克风切换离线测试**（**74/74**；打桩设备层 + 真实 Timer 调度 + COM 初始化约定） |
 | `receiver_smoke_test.py` | **接收端时序冒烟**（**28/28**；先切后注入/松开调度/fail-open/picker 路由/URL·RUN 原值/**防抖首击低时钟**） |
 | `update-win-receiver.ps1` | 按键链更新脚本（**v1.10**：冷更新支持 + tkinter 检查 + 3 文件（receiver v1.6 / actions v1.10 / audio_switch v1.2）+ 备份 + PING + selftest） |
@@ -273,7 +387,7 @@
 
 ## 现状
 
-- **win 份键位（现网，10-11 21:31 起与 mac 100% 对齐）**：`#28 OK=短按 ENTER/长按 CLICK` / `#158 返回=BACKSPACE+连发` / `#127 菜单=ESC+连发` / `#41 直播=FOCUS_INPUT` / `#114 音量-=TAB/长按 PAGEDOWN` / `#115 音量+=SPACE/长按 PAGEUP` / `#102 主页=短按 APP:CYCLE/长按 APP:PICK` / `#103-#108 方向键+连发` / `#116 电源=APP:workbuddy`；`#63 语音 locked`（语音链专用）。
+- **win 份键位（现网，10-11 21:31 起与 mac 100% 对齐）**：`#28 OK=短按 ENTER/长按 CLICK` / `#158 返回=BACKSPACE+连发` / `#127 菜单=ESC+连发` / `#41 直播=FOCUS_INPUT` / `#114 音量-=TAB/长按 PAGEDOWN` / `#115 音量+=SPACE/长按 PAGEUP` / `#102 主页=短按 APP:CYCLE/长按 APP:PICK` / `#103-#108 方向键+连发` / **`#116 电源=连击切设备（1 击=ATV / 2 击=Mac / 3 击=Win；长按=关闭当前应用）`**；`#63 语音 locked`（语音链专用）。
 - 语音触发键：微信输入法 = 按住 **Ctrl+Win**（`win_receiver.py: VOICE_MODS` 可改；若输入法换绑需同步改）。
 - 音频出口：VB-Cable `CABLE Input`（win_audio_receiver 写入）→ `CABLE Output`（虚拟线另一端）。
 - 输入法麦克风：v1.3 起设为「**默认设备**」，由接收端按需切换（语音会话=CABLE Output / 平时=真麦）。
@@ -284,6 +398,18 @@
   （23:51 报告：跑马灯 4 帧实拍 / 验收零新补丁）→ **v2.4 网格方向导航 + UWP 真实图标 ✅ 用户验收**
   （2026-10-12「Windows 上测试已经通过」；配 win_actions v1.7）→ **v1.10 升级包（v1.8/v1.9/v1.10 三合一）✅ 已上线并实测通过**
   （14:17:53 自助拉取 → 14:22 用户实测两端通过；含 ★ 长按电源键关闭当前应用，施工单留档 `TASK-close-app.md`）。
+- **鼠标模式（2026-10-13）**：13:29 远程升级上线（v1.7+v1.11）→ 用户首测五问 → **修复轮完成**
+  （v1.8+v1.12 → v1.9+v1.13，同一日三轮升级）；元凶 = 跨模块 SendInput 类型冲突
+  （探针 `EXC TypeError` → `ok(1)` 实证）；配套 T1 voice_fwd v2.6（模式 HUD/放行键）+
+  Mac lua v1.3 / key_bridge v1.14；施工单 `TASK-mouse-mode.md`（§6 修复轮）；
+  **15:1x 用户复测通过**（鼠标速度 / OK 长按右键 / 主页 / 返回全部 OK）。
+- **设备切换（2026-10-13 15:1x）**：T1 电源键连击（1=ATV / 2=Mac / 3=Win）→ 本机 HUD
+  「🎯 已切到 X」（win_receiver v1.10 + win_actions v1.14；同 MOUSE:* 路由）；
+  当日已上线，**15:4x 用户复测「可以切换了」✅**。
+- **FOCUS_INPUT 兜底点击（2026-10-14）**：五段全 miss → 底部中央 `(0.5, 0.92)` 兜底点击
+  （win_actions v1.15 实装；Mac lua v1.5 同款 → **v1.6 再修正：前台提升 + 距底 105px + fail-skip**）；
+  03:16 经 RUN 通道升级、03:18 锁屏态端到端实证
+  `NOEDIT+CLICK@1920,1987 [winfix=raise app=lockapp.exe]`；待用户遥控器复测（微信聊天场景）。
 
 ## 维护入口
 
@@ -293,7 +419,7 @@
 - **音频端重启（Windows 上）**：`pythonw win_audio_receiver.py`（日志 `audio_receiver.log`；`--dry-run` 无卡诊断；`--list` 看设备）。
 - **音频端更新（推荐路径）**：T1 开分发 → Windows `irm http://T1_IP:8000/update-win-audio.ps1 | iex`（幂等，首次部署同此命令）。
 - **音频链验收**：目标切 Windows（网页台）→ 按住遥控器语音键说话 → 出字；日志见 `session start/end frames=N`。
-- **按键端更新（最新 = v1.10 长按关闭 + picker v2.6 外观 + 选择器 v2 + URL·RUN 动作 + 麦克风切换 + 扩展动作）**：Windows `irm http://T1_IP:8000/update-win-receiver.ps1 | iex`
+- **按键端更新（最新 = v1.15 聚焦兜底点击 + v1.14 设备切换 HUD + v1.13 类统一修复 + v1.12 速度清零/HUD + v1.11 滑行引擎 + v1.10 长按关闭 + 鼠标模式 + picker v2.6 外观 + 选择器 v2 + URL·RUN 动作 + 麦克风切换 + 扩展动作）**：Windows `irm http://T1_IP:8000/update-win-receiver.ps1 | iex`
   （被本机策略拦截时走 `TASK-mic-switch.md` §1B 等效步骤；**接收端未在运行也可直接跑**，脚本自动冷部署）
   → 自检 `python win_receiver.py --selftest`（打印平台/UIA/窗口/焦点元素/**音频设备**）。
 - **扩展动作验收**：见 `TASK-win-actions.md` §3（UDP 直发三命令）；日志行 `EXT CLICK -> ...` / `EXT FOCUS_INPUT -> ...` / `EXT APP:CYCLE -> ...`。

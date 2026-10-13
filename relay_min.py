@@ -1,9 +1,31 @@
 #!/usr/bin/env python3
-"""M4 全键中继 daemon v0.10: RC003 遥控器 -> T1 -> ATV4K
+"""M4 全键中继 daemon v0.13: RC003 遥控器 -> T1 -> ATV4K
 
 数据流: /dev/input/event2 (只读, 不 grab) -> pyatv remote_control -> ATV4K
 按键映射 (2026-10-09 用户拍板 v0.7 五轮调整; v0.8 摘除语音键; v0.9 配置外置+双击+语音分流;
-          v0.10 三份 keymap 按目标分流):
+          v0.10 三份 keymap 按目标分流; v0.11 电源键连击切换设备;
+          v0.12 语音键解锁=配置驱动; v0.13 presence 接线（HUD 地址动态化 + ATV 心跳）):
+  v0.13 变更（10-14 presence 接线 —— 承 10-13 拍板的心跳注册制）:
+    · 切换 HUD 目标地址动态化: 目标 IP 优先取心跳学习地址（T1: state/presence.json）,
+      MAC_IP/WIN_IP 常量降级 fallback; 目标「明确离线」（3 拍无心跳）→ 跳过 HUD + 一行日志;
+    · ATV 在线心跳: pyatv 连接成功后经 presence_beat 向本机 presence 服务（UDP :8790）
+      注册 role=atv（svc=relay）—— 供自动切换把「ATV 链路可用」纳入候选（mac>win>atv）;
+    · 降级安全: presence 模块/守护缺失 → HUD 回退常量, 心跳停用, 其余行为不变。
+  v0.12 变更（10-13 语音键解锁 —— 用户反馈「ATV 配置页语音键不可设、描述也不对」）:
+    · 语音键 63 由硬编码 YouTube 改为配置驱动: 删除特判分支, 走通用 keymap 分派 ——
+      atv 份可自由改绑（默认 single=__LAUNCH__:com.google.ios.youtube 保持原行为
+      一键打开 YouTube; 无 long/double 时按下即发, 与旧硬编码等价）。
+    · target≠atv 时仍忽略（交 voice_fwd 转发语音输入; 诊断看 voice_fwd 日志）。
+    · 内置兜底补 63 条目（与默认一致 —— 双配置损坏时语音键也不缺失）。
+  v0.11 变更（10-13 电源键连击切换设备, 用户需求「免开网页切目标」; 与 voice_fwd v2.7 对等）:
+    · 电源 116: atv 份 single == "TARGET:SWITCH" 时启用连击层（本服务仅 target=atv 生效）:
+      1 击 = 电视电源切换（__POWER__, 保持现行为）/ 2 击 = 目标切到 mac / 3 击 = 目标切到 win。
+    · 计数窗口 0.5s（自最后一次 DOWN 起算; 第 3 击按下立即提交, 其余期满提交 ——
+      atv 侧无长按语义, 按住也照常提交, 与 voice_fwd 的「长按=APP:CLOSE」不对称属预期）。
+    · 提交 = 原子写 voice_target + 向新目标端发 HUD "KEY TARGET:SWITCH:<MAC|WIN> DOWN"
+      （Mac key_bridge v1.15 switchHud / Win win_actions v1.14 Tk 浮层）。
+    · 网关撤下（single 改回具体动作）→ 立即回到「按下即发 single」旧语义;
+      计数期间离开 atv 目标 → 提交丢弃（防串台）。
   v0.10 变更（2026-10-10 用户指示"keymapping 需要有三份"）:
     · keymap.json v2 = {targets: {atv, mac, win}}，三个目标各一份 13 键配置
     · 本服务只负责 target=atv：取 targets.atv.keys（与 v0.9 行为完全一致）
@@ -17,10 +39,11 @@
     菜单 127 -> play_pause [v0.5, HID 直发(12,0xCD), 原厂播放暂停键等效]
     主页 102 -> 短按 home / 长按(>=0.6s) home_hold=控制中心 [v0.6]
     音量 115/114 -> volume_up/volume_down
-    电源 116 -> 电源切换 (__POWER__)
+    电源 116 -> 连击切换: 1 击=电源切换(__POWER__) / 2 击=mac / 3 击=win [v0.11, 见上]
     直播 41  -> 一键打开极空间 launch_app [v0.3]
-    语音 63  -> [v0.9] 按语音目标分流 (voice_target 文件, :8765 主页三按钮切换):
-                target=atv -> 一键打开 YouTube (bundle 经 app_list 实机核实);
+    语音 63  -> [v0.12] 配置驱动: 走通用 keymap 分派（atv 份可在 :8765 /keymap 页改绑,
+                默认 single=__LAUNCH__:com.google.ios.youtube 一键打开 YouTube,
+                bundle 经 app_list 实机核实 —— v0.9 的硬编码特判已移除）;
                 target=mac/win -> 忽略 (转交 voice_fwd.py 转发语音输入)
 按键实际由 pyatv facade 转发: 全部走 MRP 隧道(AirPlay 凭据), launch 走 Companion
   ※ play_pause 教训(10-09): facade/MRP 的 play_pause 走"媒体命令通道"(TogglePlayPause),
@@ -41,6 +64,7 @@ import asyncio
 import glob
 import json
 import os
+import socket
 import struct
 import time
 
@@ -57,6 +81,13 @@ try:
 except Exception:  # noqa: BLE001
     _HID_PLAYPAUSE_READY = False
 
+try:  # v0.13: presence 读端 + ATV 心跳客户端（降级: 缺失 -> HUD 回退常量 / 心跳停用）
+    from presence import StateView as _StateView
+    import presence_beat as _presence_beat
+except Exception:  # noqa: BLE001
+    _StateView = None
+    _presence_beat = None
+
 ATV_ID = "F6AFC21D-9D6A-4505-B0FC-4E84E9D4D2FF"
 CREDS = "/root/remote-hub/atv-credentials.json"
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +96,8 @@ CFG_DEFAULT_PATH = os.path.join(HERE, "keymap.default.json")
 VOICE_TARGET_PATH = os.path.join(HERE, "voice_target")
 EV_KEY = 1
 REPEAT_THROTTLE = 0.12
-VOICE_KEY = 63                            # 语音键 = KEY_F5
+# v0.12: 语音键 63 (KEY_F5) 不再特判 —— atv 份走 keymap（默认开 YouTube, 见 keymap.default.json）;
+# 本常量仅用于内置兜底的 63 默认值
 YOUTUBE_BUNDLE = "com.google.ios.youtube"  # v0.7 经 app_list 实机核实
 
 # 特例动作（sender 分派用）
@@ -73,6 +105,16 @@ SWITCH_CMD = "__APP_SWITCH__"     # 应用切换器 (home DoubleTap)
 PLAY_PAUSE_CMD = "__PLAY_PAUSE__"  # 播放/暂停 (HID 直发)
 POWER_CMD = "__POWER__"           # 电源切换
 LAUNCH_PREFIX = "__LAUNCH__:"     # __LAUNCH__:<bundle_id>
+
+# v0.11: 电源键连击切换设备（atv 份 #116.single == TARGET:SWITCH 时启用; 与 voice_fwd v2.7 对等）
+POWER_KEY_CODE = 116
+TARGET_SWITCH_ACTION = "TARGET:SWITCH"   # 网关值（网页下拉「★ 电源（连击切设备）」）
+TARGET_SWITCH_WINDOW = 0.5               # 连击窗口（自最后一次 DOWN 起算; 期满提交）
+TARGET_ORDER = ("atv", "mac", "win")     # 计数 -> 目标（1 击=电视电源 / 2 击=mac / 3 击=win）
+MAC_IP = "MACOS_IP"                  # 切换 HUD 目标端 —— v0.13: fallback（心跳 IP 优先）
+MAC_KEY_PORT = 8791
+WIN_IP = "WINDOWS_IP"                  # v0.13: fallback
+WIN_KEY_PORT = 8791
 
 # 内置兜底（keymap.json 与 keymap.default.json 均不可读时保 ATV 核心键可用;
 # mac/win 目标留空 —— 配置文件双双损坏属重大异常, 此时保守仅保 ATV 链路）
@@ -91,8 +133,9 @@ FALLBACK_CFG = {
             "28": {"single": "select", "double": None, "long": None, "repeat": False},
             "115": {"single": "volume_up", "double": None, "long": None, "repeat": True},
             "114": {"single": "volume_down", "double": None, "long": None, "repeat": True},
-            "116": {"single": POWER_CMD, "double": None, "long": None, "repeat": False},
+            "116": {"single": TARGET_SWITCH_ACTION, "double": None, "long": None, "repeat": False},
             "41": {"single": LAUNCH_PREFIX + "com.zentraedi.zspaceTV", "double": None, "long": None, "repeat": False},
+            "63": {"single": LAUNCH_PREFIX + YOUTUBE_BUNDLE, "double": None, "long": None, "repeat": False},  # v0.12 语音键
             "127": {"single": PLAY_PAUSE_CMD, "double": None, "long": None, "repeat": False},
         }},
         "mac": {"keys": {}},
@@ -103,6 +146,10 @@ FALLBACK_CFG = {
 
 def log(msg):
     print(time.strftime("%F %T"), msg, flush=True)
+
+
+# ---- v0.13: presence 读端（HUD 地址动态化） ----
+_pv = _StateView() if _StateView else None   # 读端热缓存（0.5s 节流 + mtime 缓存）
 
 
 def _load_cfg_file(path):
@@ -173,6 +220,11 @@ class Relay:
         self._cfg_mtime = self._stat_cfg_mtime()
         self.key_state = {}  # code -> {hold_task, hold_fired, single_timer, armed_double, down_t}
         self._last_target = read_voice_target()  # v0.10: 目标切换日志去抖
+        # v0.11: 电源连击切换
+        self._power_count = 0
+        self._power_timer = None   # asyncio.TimerHandle（窗口到期提交）
+        self.hud_sock = None       # 切换 HUD 发送 socket（懒创建）
+        self.hb = None             # v0.13: ATV 在线心跳句柄（connect 成功后启动）
         log(f"配置就绪: ATV 份 {len(self._akeys())} 键  hold={self.cfg.get('hold_threshold')}s "
             f"double={self.cfg.get('double_window')}s  voice_target={self._last_target}")
 
@@ -190,6 +242,77 @@ class Relay:
             else:
                 log(f"目标={t}: relay 忽略按键（交 voice_fwd 转发）")
         return t
+
+    # ---- v0.11 电源连击切换（用户需求「免开网页切目标」; 与 voice_fwd v2.7 对等） ----
+    def _power_gate(self):
+        """atv 份 #116.single == TARGET:SWITCH 时启用连击层（按键时热读, 改配置即生效）。"""
+        return (self._akeys().get(str(POWER_KEY_CODE)) or {}).get("single") == TARGET_SWITCH_ACTION
+
+    def _cancel_power_timer(self):
+        if self._power_timer is not None:
+            try:
+                self._power_timer.cancel()
+            except Exception:  # noqa: BLE001
+                pass
+            self._power_timer = None
+
+    def _on_power_down(self):
+        """#116 DOWN（连击层）—— 计数; 满 3 立即提交, 否则窗口 TARGET_SWITCH_WINDOW 后提交。
+        单击不即时执行 —— 需等窗口确认没有后续敲击（1/2/3 击语义的固有 0.5s 延迟）。"""
+        self._power_count = min(self._power_count + 1, 3)
+        self._cancel_power_timer()
+        if self._power_count >= 3:
+            self._commit_power()
+        else:
+            loop = asyncio.get_event_loop()
+            self._power_timer = loop.call_later(TARGET_SWITCH_WINDOW, self._commit_power)
+
+    def _commit_power(self):
+        """连击提交: 1 击=__POWER__（原语义不变）; 2/3 击=切目标 + 向新目标端发 HUD。"""
+        self._power_timer = None
+        n = self._power_count
+        self._power_count = 0
+        if n <= 0:
+            return
+        if self._now_target() != "atv":     # 计数期间已离开 atv -> 丢弃（防串台）
+            log(f"电源连击 x{n}: 已离开 atv, 丢弃")
+            return
+        if n == 1:
+            log("KEY 116 单击 -> 电源切换 (__POWER__)")
+            self._emit(POWER_KEY_CODE, POWER_CMD)
+            return
+        new_t = TARGET_ORDER[n - 1]
+        old_t = read_voice_target()
+        self._write_target(new_t)
+        self._send_target_hint(new_t)
+        log(f"电源连击 x{n}: 目标 {old_t} -> {new_t}（HUD 已发 {new_t}; 后续按键交 voice_fwd）")
+
+    def _write_target(self, t):
+        """原子写 voice_target（tmp + os.replace, 与 t1_webui/voice_fwd 同构）。"""
+        tmp = VOICE_TARGET_PATH + ".tmp"
+        with open(tmp, "w") as f:
+            f.write(t + "\n")
+        os.replace(tmp, VOICE_TARGET_PATH)
+
+    def _send_target_hint(self, new_t):
+        """向新目标端发切换 HUD（atv 无接收端, 只对 mac/win 发）。
+        v0.13: 地址心跳优先/常量回退; 目标明确离线 -> 跳过（一行日志）。"""
+        if new_t not in ("mac", "win"):
+            return False
+        ip, port = (MAC_IP, MAC_KEY_PORT) if new_t == "mac" else (WIN_IP, WIN_KEY_PORT)
+        if _pv is not None:
+            if _pv.device_state(new_t) == "offline":
+                log(f"presence: {new_t} 离线（心跳超时）, 跳过切换 HUD")
+                return False
+            ip = _pv.ip_of(new_t) or ip
+        if self.hud_sock is None:
+            self.hud_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            self.hud_sock.sendto(f"KEY TARGET:SWITCH:{new_t.upper()} DOWN".encode(), (ip, port))
+            return True
+        except Exception as e:  # noqa: BLE001
+            log(f"TARGET:SWITCH HUD 发送失败: {e!r}")
+            return False
 
     # ---- v0.9 配置热重载 ----
     def _stat_cfg_mtime(self):
@@ -220,6 +343,9 @@ class Relay:
                     self.atv = await pyatv.connect(conf, loop)
                     log(f"ATV connected: {self.atv.device_info}")
                     self._find_mrp_protocol()
+                    # v0.13: ATV 链路可用 -> 向 presence 注册 role=atv（进程级心跳, 2s/拍）
+                    if _presence_beat is not None and self.hb is None:
+                        self.hb = _presence_beat.start("atv", [("relay", 0)], log_fn=log)
                     return
                 log("未发现 ATV，5s 后重试")
             except Exception as e:  # noqa: BLE001
@@ -275,6 +401,10 @@ class Relay:
                     log(f"SENT code={code} -> play_pause (HID 0xCD) (sent={self.sent} fail={self.fail})")
                 elif cmd == POWER_CMD:
                     await self.power_toggle()
+                elif cmd.startswith(TARGET_SWITCH_ACTION):
+                    # v0.11: 连击层动作不应到达 sender（#116 已由连击层消化）;
+                    # 手动绑到其它键时给明确提示而不是 AttributeError
+                    log(f"TARGET:SWITCH 需绑在电源键 #116 单击（连击计数不适用）, 忽略 code={code}")
                 elif cmd.startswith(LAUNCH_PREFIX):
                     bundle = cmd[len(LAUNCH_PREFIX):]
                     await self.atv.apps.launch_app(bundle)
@@ -325,20 +455,20 @@ class Relay:
             return
         self._maybe_reload()
 
-        # v0.9: 语音键按目标分流（atv=开 YouTube; mac/win=忽略交 voice_fwd）
-        if code == VOICE_KEY:
-            if val == 1:
-                t = self._now_target()
-                if t == "atv":
-                    log("KEY63 语音 (atv 模式) -> launch YouTube")
-                    self._emit(VOICE_KEY, LAUNCH_PREFIX + YOUTUBE_BUNDLE)
-                else:
-                    log(f"KEY63 语音 -> 忽略 (target={t}, 交 voice_fwd)")
-            return
-
+        # v0.12: 语音键 63 不再特判 —— 走下方通用 keymap 分派（atv 份可自由改绑;
+        # 默认 single=__LAUNCH__:com.google.ios.youtube 一键开 YouTube; target≠atv 同普通键忽略）
         # v0.10: 普通键仅 target=atv 时生效；mac/win 全交 voice_fwd 转发
         if self._now_target() != "atv":
             return
+
+        # v0.11: 电源键连击切换（网关启用=连击层全权消化; 撤下=清残留走旧语义）
+        if code == POWER_KEY_CODE:
+            if self._power_gate():
+                if val == 1:
+                    self._on_power_down()
+                return                # val 0/2 忽略（窗口由 DOWN 侧驱动）
+            self._cancel_power_timer()
+            self._power_count = 0
 
         ck = self._akeys().get(str(code))
         if not ck:
@@ -447,9 +577,10 @@ async def main():
     await relay.connect_atv()
     asyncio.create_task(relay.sender())
     await relay.reattach()
-    log("relay v0.10 就绪：三份 keymap（:8765 /keymap 三 tab，热重载）| 仅 target=atv 生效 | "
+    log("relay v0.13 就绪：三份 keymap（:8765 /keymap 三 tab，热重载）| 仅 target=atv 生效 | "
         "主页短=主屏/长=控制中心 | 菜单=播放暂停(HID) | 直播=开极空间 | "
-        "语音63=按目标分流(ATV→YouTube / Mac·Win→语音输入) | 电源=切换")
+        "语音63=配置驱动(默认开YouTube; Mac·Win→语音输入) | 电源=连击(1击电视电源/2击Mac/3击Win) | "
+        + ("presence=on（HUD 心跳地址优先; ATV 心跳已启）" if _presence_beat is not None else "presence=off"))
     while True:
         await asyncio.sleep(3600)
 

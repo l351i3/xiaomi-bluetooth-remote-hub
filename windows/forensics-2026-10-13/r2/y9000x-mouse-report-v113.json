@@ -1,0 +1,34 @@
+{
+  "version": "1.13",
+  "time": "2026-10-13 14:23:23",
+  "counts": {},
+  "click_ok": 0,
+  "click_fail": 0,
+  "last": [],
+  "cursor": [
+    1097,
+    1078
+  ],
+  "bounds": [
+    0,
+    0,
+    1920,
+    1080
+  ],
+  "foreground": {
+    "hwnd": 984138,
+    "rect": [
+      1,
+      1,
+      1919,
+      1007
+    ],
+    "exe_key": "explorer.exe"
+  },
+  "glide_busy": false,
+  "glide_speed": 0.0,
+  "tk_thread": "none",
+  "input_class_module": "win_actions",
+  "sendinput_probe": "ok(1)",
+  "probe_last_error": 183
+}

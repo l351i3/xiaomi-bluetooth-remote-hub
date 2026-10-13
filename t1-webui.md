@@ -1,13 +1,63 @@
-# T1 网页遥控台（:8765）交付说明 — 2026-10-12（v2.12 文案同步版；v2.0 真机验收 13:24 ✅）
+# T1 网页遥控台（:8765）交付说明 — 2026-10-14（v2.16 设备状态条版；v2.0 真机验收 13:24 ✅）
 
 ## 是什么
 
 - `http://T1_IP:8765/` —— **三按钮主页：遥控器行为目标切换**（点一下即生效）
-  - 〔ATV〕语音键 = 一键开 YouTube；其余按键 = 控制 Apple TV
+  - 〔ATV〕语音键 = 默认一键开 YouTube（v2.15 起可自由改绑）；其余按键 = 控制 Apple TV
   - 〔Mac〕语音键 = 转发 macOS 语音输入；按键 = 键盘注入（OK=回车 / 返回=Esc / 方向=方向键）
   - 〔Windows〕同上（转发链路已上线 ✅：语音键 = 转发 Windows 语音输入；键位与 Mac 100% 对齐）
+  - 〔设备状态条〕主页顶部三设备在线状态点（绿=在线 / 灰=离线 / 黄=未知，3s 刷新）——设备离线期间按键暂停投递，回来自动续
 - `http://T1_IP:8765/keymap` —— **三 tab 按键配置页**（ATV / macOS / Windows 各一份 13 键配置）
 - 手机/任意局域网设备浏览器可用；**保存热生效（下一按键起）、不重启、不断 BLE**
+
+## v2.16 变更（2026-10-14）—— 主页「设备在线状态条」（presence 心跳可视化）
+
+- **功能**：主页新增设备状态条——ATV / macOS / Windows 三个状态点（绿=在线 / 灰=离线+
+  最后在线秒数 / 黄=未知），3s 轮询 `GET /api/presence`；数据源 = `state/presence.json`
+  （presence 心跳注册制，30s 写盘快照；90s 过期 → 降级「未知」，不影响页面功能）。
+- **降级安全**：presence 服务未运行 / 快照缺失 / 损坏 → `available=false` → 前端显示
+  「设备状态未知（presence 未运行）」；页面其余行为零改动。
+- **测试**：`webui_v2_test.py` **111/111**（+10：组装/降级/过期/主页元素）。
+- **部署**：T1 04:47 上线（t1-webui 重启；`/api/presence` 实测三设备 online）。
+
+## v2.15 变更（2026-10-13 16:2x）—— ATV 语音键解锁（配置驱动）
+
+- **背景**：用户反馈「ATV 配置页语音键不可设、描述不对」——atv 份 #63 长期 `locked: true`
+  不可编辑 + note 写成「语音链专用」；实际上语音键在 ATV 上应可自由设置。
+- **功能**：atv 份 #63 **去锁定** + single 默认置 `__LAUNCH__:com.google.ios.youtube`
+  （**保持原行为一键开 YouTube**）+ note 重写；网页上可自由改绑任意 ATV 动作
+  （如 home / menu / 打开极空间 / 其它应用），清空=关闭该键。mac/win 份 #63 **保持锁定**
+  （按住说话, 语音链专用, 交 voice_fwd）。
+- **执行端**：`relay_min` v0.12 配合改造——语音键删除硬编码特判，**走通用 keymap 分派**
+  （核心一句话：以前锁死是因为行为写死在代码里，现在完全由配置决定）。
+- **测试**：`webui_v2_test.py` **101/101**（+1 净增：atv 63 解锁可改 + mac 63 锁定保护）。
+- **部署**：T1 16:25 上线（relay v0.12 + webui v2.15 重启 + keymap 三配置同步）；
+  `relay_logic_test.py` **31/31**（+2：改绑跟随 / 清空无动作）。
+
+## v2.14 变更（2026-10-13 15:1x）—— 新增动作「★ 电源（连击切设备）」（TARGET:SWITCH）
+
+- **功能**：mac / win / atv **三 tab 下拉**均新增 `TARGET:SWITCH`；生产绑定 = **#116 电源键 single**
+  （原「打开 workbuddy」（mac/win）与「电视电源」（atv）不再保留；**长按关闭应用不变**）：
+  **1 击=ATV · 2 击=Mac · 3 击=Win**（连击窗口 0.5s；第 3 击立即提交；长按 ≥0.6s 中止计数）。
+- **执行端**：`voice_fwd` v2.7（mac/win 态）/ `relay_min` v0.11（atv 态）双侧连击层——
+  **网关式启用**（keymap `#116.single` 即本动作；改回任意动作即退回普通键语义，零代码改动）。
+  切换即时生效 + 目标端弹「🎯 已切到 X」提示浮层（Mac lua v1.4 / Win win_actions v1.14）。
+- **实现（t1_webui v2.14）**：`KB_ACTIONS` + `KB_CHOICES` 放行（mac/win 份）；`ATV_SPECIAL` 放行
+  （atv 份）；extLabel 特判「★ 电源（连击切设备）」；`__POWER__` 选项标注改「电源切换（立即，无连击）」。
+  keymap 两份 #116.single 已置 `TARGET:SWITCH` + note 注记（现网即刻生效）。
+- **测试**：`webui_v2_test.py` **100/100**（+11：choices 文案 / 三份 POST 接受且落盘 / 默认值 /
+  #116 note / extLabel 特判）。
+
+## v2.13 变更（2026-10-13）——新增动作「★ 鼠标模式开/关」（MOUSE:TOGGLE）
+
+- **功能**：mac/win 下拉新增 `MOUSE:TOGGLE`；生产绑定 = **#41 直播键 long**（单击仍为
+  「跳转输入框」；长按 0.6s 切换鼠标模式开/关）。动作由 `voice_fwd` 模式层**本地消化**
+  （不转发网络包；v2.5 引入，v2.6 修复轮补模式 HUD 提示 + 电源/主页放行）：模式内 方向=滑行移光标 /
+  OK 短=左键·长=右键 / 音量±=滚动 / 返回=退出。
+- **实现（t1_webui v2.13）**：`KB_ACTIONS` 放行 `MOUSE:TOGGLE` + `KB_CHOICES` 下拉项（长按列
+  直接可见——下拉由 choices 派生）。keymap 两份（`keymap.json` / `keymap.default.json`）
+  #41 long 已同步置 `MOUSE:TOGGLE`（mac/win 对齐；atv 不变）。
+- **测试**：`webui_v2_test.py` 89 全绿 + `key_fwd_logic_test.py` 79（含 #41 现网集成断言；v2.6 修复轮后共 **104**）。
 
 ## v2.12 变更（2026-10-12 21:3x）——win 卡片文案同步（移除「链路待部署」）
 
@@ -211,6 +261,8 @@
 
 ## 文件清单（T1 `/root/remote-hub/`）
 
+> 注：本节为 10-10 前后 v2.x 交付时快照（版本号未随每次迭代维护）；**现网版本以上文各变更节为准**。
+
 | 文件 | 说明 |
 |---|---|
 | `t1_webui.py` v2.5 | web 服务（三 tab + v2 API + APP: 应用动作/轮询/选择器 + 长按解禁 + 自定义应用 + 按住连发可选 + **FOCUS_INPUT 跳转输入框**） |
@@ -294,4 +346,5 @@ banner `t1_webui v2.5 启动`；mac 份 #41 配 FOCUS_INPUT 并 GET 复核；Mac
 - Windows 目标已全链部署（10-11 起）：按键 / 语音 / 音频链均实机验收，键位与 Mac 100% 对齐；见 `windows/README.md`
 - mac 键注入需 Mac 侧**两个服务**在跑：`key_bridge`（:8791 收键）+ `cgpost-serve`（CGEventPost 注入器常驻；失联时自动熔断外走 submit 兜底）；见 `mac-key-bridge.md`
 - **FOCUS_INPUT（跳输入框）**：mac / win 两端均已实现（win 自 `win_actions` v1.2 扩展动作起；10-11 键位对齐含 #41）；微信等内容层无 AX 的应用
-  只做窗口级修复；细节与局限见 `hammerspoon-focus.md`
+  自 10-14 起改为**底部中央兜底点击**（Mac lua v1.5 引入 → **v1.6 修正**：前台提升防遮挡 + 落点距窗底 105px；win_actions v1.15 仍为 `(0.5,0.92)`，是否对称调整待复测；报 `NOEDIT+CLICK`；非常规布局仍可能点空）；
+  **鼠标模式内短按 #41 也照常跳输入框**（voice_fwd v2.8 起放行转发；此前被模式层吸收）。细节与局限见 `hammerspoon-focus.md`

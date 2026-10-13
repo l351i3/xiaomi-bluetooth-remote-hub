@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>com.remotehub.presence-beater</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/presence_beater.sh</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/presence_beater.log</string>
+	<key>StandardOutPath</key>
+	<string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub/logs/presence_beater.log</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/username/WorkBuddy/2026-10-08-00-43-22/remote-hub</string>
+</dict>
+</plist>
