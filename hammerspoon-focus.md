@@ -197,9 +197,10 @@ cp remote-hub/AppPicker.bak-20261010-1930 remote-hub/AppPicker.app/Contents/MacO
 cp ~/.hammerspoon/init.lua.bak-20261010-190750 ~/.hammerspoon/init.lua
 # E) 回滚 lua 到 v1.4（兜底点击消失，恢复原 NOEDIT 语义；免重启 Hammerspoon）：
 cp remote-hub/hammerspoon/remotehub_focus.lua.bak-20261014-030930-preV28 ~/.hammerspoon/remotehub_focus.lua
-# F) 存档说明（勿误用）：`.bak-20261014-0340-preV16` 名为「preV16」但其实际内容是 **v1.6 首轮
-#    编辑后的「首稿」**（⓪ 前台提升先于 ① 窗口修复的顺序缺陷 + 无 fail-skip 保护）——**属待修状态，
-#    勿用于回滚**；v1.5 无独立档（v1.6 首轮编辑先于备份执行，v1.5 源被首稿覆盖）。
+# F) 存档说明（勿误用）：`remotehub_focus.lua.bak-20261014-0340-firstdraft-DO-NOT-RESTORE`（原名
+#    `…-preV16`，10-14 改名去除误导）实际内容是 **v1.6 首轮编辑后的「首稿」**（⓪ 前台提升先于 ① 窗口
+#    修复的顺序缺陷 + 无 fail-skip 保护）——**属待修状态，勿用于回滚**；v1.5 无独立档（v1.6 首轮编辑
+#    先于备份执行，v1.5 源被首稿覆盖）。
 #    注：此为先备份后编辑纪律的反面案例（备份语义须 cp 当时校验版本）。
 ```
 
@@ -213,7 +214,7 @@ cp remote-hub/hammerspoon/remotehub_focus.lua.bak-20261014-030930-preV28 ~/.hamm
 | v1.3 | 10-13 14:2x | `mouseHud()` 模式切换浮层（「🖱 鼠标模式 / ⌨ 键盘模式」；key_bridge v1.14 `MOUSE:MODE:*`；全链冒烟 `OK hud on/off` ✅） |
 | v1.4 | 10-13 15:2x | `switchHud()` 设备切换浮层（「🎯 已切到 X」；key_bridge v1.15 `TARGET:SWITCH:*`；实机应答 `OK hud switch:win` ✅） |
 | **v1.5** | **10-14 03:0x** | **★ `focusInput()` 全 miss 兜底点击 `(0.5,0.92)` + 光标原位恢复**（报 `NOEDIT+CLICK@x,y`；治用户「鼠标模式/键盘模式下按焦点键都不灵——微信类应用」）；配套 T1 `voice_fwd` v2.8（模式内 #41 放行）+ win_actions v1.15（同款兜底）。部署：双副本 `hs -c dofile` 加载 OK + sha256 `3d7d24da…` 双端一致 |
-| **v1.6** | **10-14 03:4x** | **★ 深挖修复（承用户复查「还是不行」）**：① 新增 `ensureFrontApp()` 前台提升（activate + z 序校验 ≤3 次；置于窗口修复之后）——治「目标窗被遮挡 → 合成点击/键盘被顶层窗截胡」（现场 12 窗堆叠实证）；② 兜底坐标 `0.92 比例` → **距窗底 105px**（0.92 实测落输入框下方按钮行）；③ 提升失败 `front=fail-skip` **跳过点击**（防误点遮挡弹窗）。**实证**：activate + click(956,767) → 注入字符落入输入框 ✓。部署：sha256 `737b7cf4…` 双端一致 + 双副本加载 OK。注：`.bak-…-preV16` 档名实为首稿（含顺序缺陷），非 v1.5 前档 |
+| **v1.6** | **10-14 03:4x** | **★ 深挖修复（承用户复查「还是不行」）**：① 新增 `ensureFrontApp()` 前台提升（activate + z 序校验 ≤3 次；置于窗口修复之后）——治「目标窗被遮挡 → 合成点击/键盘被顶层窗截胡」（现场 12 窗堆叠实证）；② 兜底坐标 `0.92 比例` → **距窗底 105px**（0.92 实测落输入框下方按钮行）；③ 提升失败 `front=fail-skip` **跳过点击**（防误点遮挡弹窗）。**实证**：activate + click(956,767) → 注入字符落入输入框 ✓。部署：sha256 `737b7cf4…` 双端一致 + 双副本加载 OK。注：原 `.bak-…-preV16` 已改名 `…-firstdraft-DO-NOT-RESTORE`（实为首稿含顺序缺陷，非 v1.5 前档） |
 | 守卫 v1.0 | 10-10 19:5x | 健康守卫 `hs_health.py` + `com.remotehub.hs-health` 上线（见下节） |
 
 ---

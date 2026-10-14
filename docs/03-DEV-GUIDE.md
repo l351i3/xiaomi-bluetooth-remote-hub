@@ -1,6 +1,6 @@
 # 开发文档 —— 架构 · 协议 · 模块 · 流程
 
-> 现网版本：T1 `voice_fwd` v2.9 / `relay_min` v0.13 / `t1_webui` v2.16 / `atvv_service` v1.2 / `presence` v1.0 ｜ Mac `key_bridge` v1.15 / `voice_bridge` v0.9 / `atvv_receiver` v1.2 / `app_switch` v1.2 / `AppPicker` v1.3 / `hs_health` v1.0 / `remotehub_focus.lua` v1.6 / `presence_beater` v2.1 ｜ Win `win_receiver` v1.11 / `win_actions` v1.15 / `win_audio_switch` v1.2 / `win_audio_receiver` v1.0 / `presence_beat` v1.0
+> 现网版本：T1 `voice_fwd` v2.9 / `relay_min` v0.13 / `t1_webui` v2.17 / `atvv_service` v1.2 / `presence` v1.0 ｜ Mac `key_bridge` v1.15 / `voice_bridge` v0.9 / `atvv_receiver` v1.2 / `app_switch` v1.2 / `AppPicker` v1.3 / `hs_health` v1.0 / `remotehub_focus.lua` v1.6 / `presence_beater` v2.1 ｜ Win `win_receiver` v1.11 / `win_actions` v1.16 / `win_audio_switch` v1.2 / `win_audio_receiver` v1.0 / `presence_beat` v1.0
 >
 > （presence 心跳注册制 10-14 全链接线；更新于 2026-10-14。）
 
@@ -28,7 +28,7 @@
 │                      │                              （→ mac 或 win，按 keymap）│
 │  MIC(ATVV) ──────────┴─► atvv_service   v1.1  ── UDP :8789 音频流 双播 ──┐ │
 │                                                                          │ │
-│  t1_webui  v2.15  :8765（目标切换 + /keymap 配置 + rev 指纹）              │ │
+│  t1_webui  v2.17  :8765（目标切换 + /keymap 配置 + rev 指纹）              │ │
 └──────────────────────────────────────────────────────────────────────────┘ │
                                                                              │
         ┌────────────────────────────────────────────┬───────────────────────┘
@@ -37,7 +37,7 @@
 │ macOS（本机）                 │    │ Windows（Win11）                       │
 │                               │    │                                        │
 │ key_bridge v1.15 :8791        │    │ win_receiver v1.10 :8791               │
-│   └─ CGPost serve 常驻注入    │    │   ├─ win_actions v1.15（扩展动作库）   │
+│   └─ CGPost serve 常驻注入    │    │   ├─ win_actions v1.16（扩展动作库）   │
 │   └─ app_switch v1.2 /        │    │   ├─ win_audio_switch v1.2（麦克风切换）│
 │      AppPicker v1.3 /         │    │   └─ 键盘注入（SendInput）             │
 │      hammerspoon 焦点子系统   │    │                                        │
@@ -113,6 +113,7 @@ VOICE up     ← 松开（提交）
 | `GET /api/keymap` | 返回 `{cfg, rev, choices, order, repeat_opt}`（rev = 配置指纹前 12 位） |
 | `POST /api/keymap` | 写配置；`rev` 不符/缺失 → **409 拒写**（防旧页面回写） |
 | `POST /api/keymap/reset` | 用 `keymap.default.json` 恢复默认 |
+| `GET /api/remote` | 遥控器电量（v2.17）：`{available, connected, percent}`（busctl 只读 BlueZ 缓存；未连接/未上报 → 降级 `available=false`） |
 
 ---
 
@@ -144,7 +145,7 @@ Mac/Win/ATV ──"PRESENCE <role> <svc> <port>"（每 2s）──► T1 presenc
 |---|---|
 | `voice_fwd.py` v2.9 | ① 键分类：语音键→8788 / 普通键→8791；② **自建连发**：遥控器固件不发 `EV_REP`，`repeat=true` 的键在满 0.5s 后由本进程每 0.12s 补发 DOWN；③ **长按状态机**：`pending_long`/`long_fired` 严格互斥——未满 0.6s 松开→发 single（补 down+up）；满阈值→发 long；触发 long 后松开→补发 long 的 UP；④ 配对纪律；⑤ WIN_IP（WINDOWS_IP）双目标转发；⑥ **鼠标模式状态机**（v2.5/v2.6：长按 #41 开关 + `MOUSE:MODE:*` HUD 提示 + 电源/主页放行透传 + 0.4s 保活；**v2.8：模式内短按 #41 放行聚焦**——直发实时目标，不再吸收/提示）；⑦ **电源连击切换设备**（v2.7：keymap `#116.single=TARGET:SWITCH` 为启用闸门——1/2/3 击=ATV/Mac/Win，窗 0.5s、第 3 击立即提交、长按仍走 APP:CLOSE；提交后 0.5s 吞键期 + 切 atv 强退鼠标模式）；⑧ **presence 投递闸门**（v2.9：`_send_to()`——设备离线跳过 + 心跳学习 IP 优先 + 无地址 60s 节流丢弃） |
 | `relay_min.py` v0.13 | RC003 → pyatv 中继（Companion 协议）；配置外置（keymap atv 份）；语音键 v0.12 起**配置驱动**（走通用分派；默认一键开 YouTube，网页可自由改绑，清空=关闭）；`play_pause` 须 HID 直发 `(12,0xCD)`（pyatv 通用路径"假成功"）；v0.11 电源连击（atv 目标下）：1 击=电视电源 / 2 击=切 mac / 3 击=切 win（切走时写 `voice_target` + 向旧目标端发 HUD）；v0.13：presence 闸门（HUD 地址动态化 + 离线跳过）+ ATV 心跳上报 |
-| `t1_webui.py` v2.16 | 标准库 http.server；`/`=三按钮；`/keymap`=三 tab 配置；rev 指纹防回写；改配置即写 `keymap.json`（voice_fwd 热读，无需重启）；动作选项含 `MOUSE:TOGGLE`（鼠标模式开关，v2.13）与 `TARGET:SWITCH`（电源连击切设备，v2.14）；atv 语音键 #63 v2.15 已解锁（默认「打开 YouTube」，可改绑）；v2.16 主页设备状态条（`GET /api/presence` 只读消费 + 降级安全） |
+| `t1_webui.py` v2.17 | 标准库 http.server；`/`=三按钮；`/keymap`=三 tab 配置；rev 指纹防回写；改配置即写 `keymap.json`（voice_fwd 热读，无需重启）；动作选项含 `MOUSE:TOGGLE`（鼠标模式开关，v2.13）与 `TARGET:SWITCH`（电源连击切设备，v2.14）；atv 语音键 #63 v2.15 已解锁（默认「打开 YouTube」，可改绑）；v2.16 主页设备状态条（`GET /api/presence` 只读消费 + 降级安全）；v2.17 遥控器电量（`GET /api/remote`，busctl 只读 BlueZ Battery1 缓存 + 降级安全） |
 | `atvv_service.py` v1.2 | RC003 语音流 → UDP 双播（Mac + Windows）；失败隔离（一路不通不影响另一路）；与按键 target 解耦（音频恒双播）；v1.2：presence 闸门（`_dests()` 动态解析——离线跳过 + 边沿日志） |
 | `presence.py` v1.0 | 设备在线注册表（UDP :8790 守护）：心跳接收 / ACK / 6s 判离线 / 优先级自动切换 / 30s 原子落盘 `state/presence.json`；读端 `StateView`（0.5s 节流 + mtime 缓存）供三服务热路径消费 |
 
@@ -166,7 +167,7 @@ Mac/Win/ATV ──"PRESENCE <role> <svc> <port>"（每 2s）──► T1 presenc
 | 模块 | 关键设计 |
 |---|---|
 | `win_receiver.py` v1.11 | UDP 接收 + 防抖 + 异步日志（队列+句柄常开，杜绝收包线程写盘）；语音键=**先切麦克风后注入**；`picker_route()` 选择器期间按键直连路由（50ms 消费，不依赖焦点）；防抖首击修复（None 哨兵）；v1.8 鼠标模式（`MOUSE:*` → `win_actions.mouse_control` + 模式 HUD）；v1.9 **复用 win_actions 的 INPUT 类**（全进程单类，修跨模块 SendInput 冲突）；v1.10 `TARGET:SWITCH:*` 同 MOUSE:* 路由（设备切换 HUD）；v1.11 presence 心跳（`presence_beat` 单代理报 voice/key/audio） |
-| `win_actions.py` v1.15 | 扩展动作库（3365 行）：CLICK 四段 / FOCUS_INPUT 五阶段（均移植自 Mac 对应件；**v1.15 NOEDIT 兜底点击 + `app=` 观测字段**）/ APP:* 全家 / URL: / RUN: / `APP:CLOSE`（WM_CLOSE 优雅关闭：`SendMessageTimeoutW(SMTO_ABORTIFHUNG)` + `close_poll` 轮询 ≤2s + UWP 真身窗口定位）；选择器 v2.6（网格导航 + UWP Shell 图标 + 光学尺寸归一 + 长名滚动）；v1.11/v1.12 **MouseGlide 滑行引擎**（60Hz 积分、速度自 0 线性加速、`stop()/_sweep()` 事件驱动清零、模式 HUD）；v1.13 INPUT 类**唯一定义源**（跨模块 SendInput 冲突修复 + `MOUSE:REPORT` 探针）；v1.14 `TARGET:SWITCH:*` 设备切换 HUD（复用 v1.12 HUD 体系——`_hud_open_text` 抽取共用） |
+| `win_actions.py` v1.16 | 扩展动作库（3373 行）：CLICK 四段 / FOCUS_INPUT 五阶段（均移植自 Mac 对应件；**v1.15 NOEDIT 兜底点击 + `app=` 观测字段**）/ APP:* 全家 / URL: / RUN: / `APP:CLOSE`（WM_CLOSE 优雅关闭：`SendMessageTimeoutW(SMTO_ABORTIFHUNG)` + `close_poll` 轮询 ≤2s + UWP 真身窗口定位）；选择器 v2.6（网格导航 + UWP Shell 图标 + 光学尺寸归一 + 长名滚动）；v1.11/v1.12 **MouseGlide 滑行引擎**（60Hz 积分、速度自 0 线性加速、`stop()/_sweep()` 事件驱动清零、模式 HUD）；v1.13 INPUT 类**唯一定义源**（跨模块 SendInput 冲突修复 + `MOUSE:REPORT` 探针）；v1.14 `TARGET:SWITCH:*` 设备切换 HUD（复用 v1.12 HUD 体系——`_hud_open_text` 抽取共用）；v1.16 `do_app_activate` 观测日志（`front=… -> key ok=…`／not-running 路径） |
 | `win_audio_switch.py` v1.2 | 默认录音设备按需切换（三 role 同切；松开 2s 恢复；gen 双重检查；fail-open） |
 | `win_audio_receiver.py` v1.0 | 语音流 → CABLE Input（设备采样率自适应） |
 
@@ -305,7 +306,7 @@ RC003 流两坑：**直流偏置**（最高满幅 50%）+ 有效电平低（0.01
 # Mac/T1 侧（在 remote-hub/ 下）
 python3 relay_logic_test.py            # 31（v0.11 连击 + v0.12 语音键配置驱动）
 python3 key_fwd_logic_test.py          # 165（鼠标模式 + v2.7 连击 + v2.8 模式内 #41 放行 + v2.9 presence 闸门）
-python3 webui_v2_test.py               # 111（v2.15 语音键解锁 + v2.16 设备状态条）
+python3 webui_v2_test.py               # 121（v2.15 语音键解锁 + v2.16 设备状态条 + v2.17 遥控器电量）
 /Users/username/.workbuddy/binaries/node/versions/22.22.2-6/bin/node webui_js_test.mjs   # 42
 python3 apppicker_grid_test.py         # 33
 python3 apppicker_name_test.py         # 16

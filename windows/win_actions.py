@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-win_actions.py — Windows 遥控扩展动作 v1.14 (2026-10-13)
+win_actions.py — Windows 遥控扩展动作 v1.16 (2026-10-14)
 =======================================================
 为 win_receiver v1.2+ 提供三类「Mac 对等」扩展动作（Mac 端参照:
 key_bridge.py / app_switch.swift / hammerspoon/remotehub_focus.lua）:
@@ -36,6 +36,12 @@ key_bridge.py / app_switch.swift / hammerspoon/remotehub_focus.lua）:
                1600px/s / 多方向叠加（斜向 √2 速, 对齐 Mac lua）/ 1.2s 无刷新看门狗
                自停（保活断流即刹车）/ 虚拟屏包围盒夹取。60Hz 常驻推进线程（懒启动）。
                Mac 对等 = key_bridge v1.15 + remotehub_focus.lua v1.5（参数两端一致）。
+
+v1.16 变更（2026-10-14，do_app_activate 观察日志 —— 治 10-14 03:04 排障盲点）:
+  · do_app_activate 全程落日志（_logv）: 成功路径记「front=<原前台> -> <目标> ok=」、
+    未运行路径记「front=..., not-running -> launch」——「activate 事件当时前台是谁」
+    排障直达（10-14 03:04 `activate chrome.exe ok=False` 曾因无日志不可判定）。
+  · 其余行为零变更（纯观测增强; _logv 空注入时静默跳过, 直调场景安全）。
 
 v1.15 变更（2026-10-14，FOCUS_INPUT 兜底点击 —— 承用户反馈「焦点聚焦键不灵」，双端对齐）：
   · focus_input_strategy 五段全败（NOEDIT, 即微信等无 UIA 内容层的应用）时, 不再直接
@@ -236,7 +242,7 @@ import threading
 import time
 from ctypes import wintypes as wt
 
-VERSION = "1.15"
+VERSION = "1.16"
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_DIR = os.path.join(HERE, "state")
 IS_WIN = (os.name == "nt")
@@ -1902,7 +1908,9 @@ def do_app_activate(query):
         ok = _activate_key(m["key"], all_apps)
         if ok and front_key != m["key"]:
             _save_state(dict(_load_state(), prev=front_key, cur=m["key"]))
+        _logv("app-activate '%s': front=%s -> %s ok=%s" % (query, front_key, m["key"], ok))
         return "activate %s '%s' ok=%s" % (m["exe"], (m["title"] or "")[:30], ok)
+    _logv("app-activate '%s': front=%s, not-running -> launch" % (query, front_key))
     ok, detail = launch_app(query)
     return "not-running -> %s" % detail
 

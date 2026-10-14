@@ -1,4 +1,4 @@
-# T1 网页遥控台（:8765）交付说明 — 2026-10-14（v2.16 设备状态条版；v2.0 真机验收 13:24 ✅）
+# T1 网页遥控台（:8765）交付说明 — 2026-10-14（v2.17 遥控器电量版；v2.0 真机验收 13:24 ✅）
 
 ## 是什么
 
@@ -9,6 +9,18 @@
   - 〔设备状态条〕主页顶部三设备在线状态点（绿=在线 / 灰=离线 / 黄=未知，3s 刷新）——设备离线期间按键暂停投递，回来自动续
 - `http://T1_IP:8765/keymap` —— **三 tab 按键配置页**（ATV / macOS / Windows 各一份 13 键配置）
 - 手机/任意局域网设备浏览器可用；**保存热生效（下一按键起）、不重启、不断 BLE**
+
+## v2.17 变更（2026-10-14 15:5x）—— 遥控器电量显示（用户需求）
+
+- **需求**（用户原话）：「现在连到 T1 上，我并不知道蓝牙遥控器还有多少电，所以在 T1 控制台上加这么一个电量显示」。
+- **功能**：主页设备状态条追加「🎮 遥控器 🔋 N%」（10s 轮询 `GET /api/remote`；电量 ≤20% 黄 / ≤10% 红）。
+  数据源 = BlueZ D-Bus 缓存属性（`busctl --json=short get-property org.bluez
+  /org/bluez/hci0/dev_<遥控器> org.bluez.Battery1 Percentage`；RC003 支持 Battery Service），
+  **零蓝牙流量**（只读缓存，对遥控器零打扰）。
+- **降级安全**：遥控器未连接 / 未上报电量（BLE 休眠时属正常）/ busctl 不可用 →
+  `available=false` → 显示「休眠中／电量未知」；页面其余行为零改动。
+- **测试**：`webui_v2_test.py` **121/121**（+10：三态 fake busctl〔fail/ok/disc〕+ 降级 + 主页元素）。
+- **部署**：T1 15:51 上线（双端 sha256 全等）；`/api/remote` 实测 `{"available": true, "connected": true, "percent": 100}`。
 
 ## v2.16 变更（2026-10-14）—— 主页「设备在线状态条」（presence 心跳可视化）
 
@@ -254,6 +266,7 @@
 
 - `GET /api/state` → `{voice_target}`
 - `GET /api/keymap` → `{cfg(v2), choices:{atv,mac,win}, order, repeat_opt}`（v2.4：repeat_opt = 长按列「⟳ 按住连发」选项数据源）
+- `GET /api/remote` → `{available, connected, percent, note?}`（v2.17：遥控器电量；busctl 读 BlueZ Battery1 缓存，未连接/未上报 → `available=false` 降级）
 - `POST /api/voice_target` `{"target":"atv|mac|win"}`
 - `POST /api/keymap` `{"target","keys":{...}}` → 只替换该目标份（其余目标保留当前值）；字段值优先序：本次提交 > 当前配置 > 默认
 - `POST /api/keymap/reset` `{"target"}` → 恢复该目标默认；不带 target = 全部恢复

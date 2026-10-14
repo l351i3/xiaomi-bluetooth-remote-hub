@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""t1_webui.py — T1 控制面板 v2.16 (2026-10-14)
+"""t1_webui.py — T1 控制面板 v2.17 (2026-10-14)
+
+v2.17（10-14）: 主页设备状态条新增「遥控器电量」—— 遥控器（RC003）连在 T1 上, 此前
+   无法得知还剩多少电（用户需求）。数据源 = BlueZ Battery1 D-Bus（遥控器 BLE Battery
+   Service 周期上报的缓存值; 查询零蓝牙流量、对遥控器零打扰）: busctl --json=short 读
+   Percentage + Device1.Connected, 10s 轮询 GET /api/remote（独立节拍）。BLE 休眠未连接
+   → 「休眠中」/ 读取失败 → 「电量未知」（降级安全, 永不阻塞页面其余功能）。
+   低电量变色（≤20% 橙 / ≤10% 红）。
 
 v2.16（10-14）: 主页新增「设备在线状态」条 —— 消费 presence 心跳注册制（T1 :8790）:
    ATV / macOS / Windows 三设备状态点（绿=在线 / 灰=离线+最后在线秒数 / 黄=未知）,
@@ -83,6 +90,7 @@ v2.1（10-10 15:3x）: mac/win 新增「应用动作」选项 —— APP:TOGGLE�
 API:
   GET  /api/state           当前目标
   GET  /api/presence        设备在线快照（presence.json 只读; 降级安全）
+  GET  /api/remote          遥控器电量 + 连接（BlueZ Battery1; 降级安全）
   GET  /api/keymap          当前 v2 配置 + 各目标动作清单
   POST /api/voice_target    {"target": "atv|mac|win"}  写 voice_target 状态文件
   POST /api/keymap          {"target","hold_threshold","double_window","keys"}
@@ -107,6 +115,7 @@ API:
 import hashlib
 import json
 import os
+import subprocess
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -226,6 +235,38 @@ def read_presence_snapshot():
         devs[role] = {"state": d.get("state") or "unknown", "ip": d.get("ip"),
                       "age": round(now - float(d.get("last_seen") or 0), 1)}
     return {"available": True, "devices": devs}
+
+
+REMOTE_MAC = "C0:5D:39:XX:XX:XX"          # RC003 遥控器（蓝牙配对地址）；换绑新遥控器时改这里
+REMOTE_DBUS_PATH = "/org/bluez/hci0/dev_" + REMOTE_MAC.replace(":", "_")
+
+
+def _busctl_get(path, iface, prop):
+    """busctl get-property --json=short 取值（失败/不可用返回 None）—— v2.17 电量读取用。"""
+    try:
+        r = subprocess.run(["busctl", "--json=short", "get-property", "org.bluez",
+                            path, iface, prop],
+                           capture_output=True, text=True, timeout=5)
+        if r.returncode == 0:
+            return json.loads(r.stdout).get("data")
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def read_remote_battery():
+    """v2.17: 遥控器电量（主页状态条用）。
+
+    数据源 = BlueZ Battery1 D-Bus 属性（遥控器 BLE Battery Service 周期上报的缓存值,
+    查询产生零蓝牙流量、对遥控器零打扰）。未连接 / 未上报 / busctl 不可用 →
+    available=False 降级（前端显示「休眠中/电量未知」, 永不阻塞页面其余功能）。"""
+    connected = _busctl_get(REMOTE_DBUS_PATH, "org.bluez.Device1", "Connected")
+    pct = _busctl_get(REMOTE_DBUS_PATH, "org.bluez.Battery1", "Percentage")
+    info = {"available": pct is not None, "connected": bool(connected),
+            "percent": pct}
+    if pct is None:
+        info["note"] = "遥控器未连接或未上报电量（BLE 休眠时属正常）"
+    return info
 
 
 def write_target(t):
@@ -426,6 +467,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"voice_target": read_target()})
         elif path == "/api/presence":
             self._json(200, read_presence_snapshot())
+        elif path == "/api/remote":
+            self._json(200, read_remote_battery())
         elif path == "/api/keymap":
             self._json(200, {"cfg": read_cfg_safe(), "rev": calc_rev(), "choices": CHOICES_BY_TARGET,
                              "order": KEY_ORDER, "repeat_opt": REPEAT_OPT})
@@ -506,6 +549,9 @@ h1 { font-size:22px; margin:4px 0 2px; }
 .dot.online { background:var(--ok); box-shadow:0 0 6px rgba(34,197,94,.45); }
 .dot.offline { background:#6b7280; }
 .dot.unknown { background:var(--warn); }
+.devbar .batt { font-weight:600; }
+.devbar .batt.low { color:var(--warn); }
+.devbar .batt.crit { color:#ef4444; }
 .foot { position:fixed; left:16px; right:16px; bottom:16px; }
 .foot a { display:block; text-align:center; background:var(--panel2); color:var(--fg); padding:14px;
   border-radius:12px; text-decoration:none; font-size:15px; }
@@ -591,11 +637,25 @@ async function refreshPresence() {
       const st = ['online','offline','unknown'].indexOf(d.state) >= 0 ? d.state : 'unknown';
       const label = st === 'online' ? '在线' : st === 'offline' ? ('离线 ' + Math.round(d.age || 0) + 's') : '未知';
       return '<span class="dev"><span class="dot ' + st + '"></span>' + NAMES[r] + ' ' + label + '</span>';
-    }).join('');
+    }).join('') + renderBatt();
   } catch (e) { el.innerHTML = '<span class="dev"><span class="dot unknown"></span>设备状态读取失败</span>'; }
+}
+let remoteBatt = null;
+function renderBatt() {
+  if (!remoteBatt) return '';
+  const rb = remoteBatt;
+  if (!rb.available) return '<span class="dev">🎮 遥控器 ' + (rb.connected ? '电量未知' : '休眠中') + '</span>';
+  const p = rb.percent, cls = p <= 10 ? ' crit' : p <= 20 ? ' low' : '';
+  return '<span class="dev">🎮 遥控器 🔋 <b class="batt' + cls + '">' + p + '%</b></span>';
+}
+async function refreshRemoteBattery() {
+  try { remoteBatt = await (await fetch('/api/remote')).json(); }
+  catch (e) { remoteBatt = null; }
+  refreshPresence();
 }
 refresh(); setInterval(refresh, 5000);
 refreshPresence(); setInterval(refreshPresence, 3000);
+refreshRemoteBattery(); setInterval(refreshRemoteBattery, 10000);
 </script>
 </body>
 </html>
@@ -773,7 +833,7 @@ PAGE_KEYMAP = PAGE_KEYMAP.replace("%%CSS%%", CSS)
 
 def main():
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    log(f"t1_webui v2.16 启动: http://0.0.0.0:{PORT}/ (voice_target={read_target()})")
+    log(f"t1_webui v2.17 启动: http://0.0.0.0:{PORT}/ (voice_target={read_target()})")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

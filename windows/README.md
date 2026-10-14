@@ -1,4 +1,4 @@
-# Windows（Windows）链路维护笔记 — 2026-10-14 v1.11 心跳 + v1.15 兜底点击版
+# Windows（Windows）链路维护笔记 — 2026-10-14 v1.11 心跳 + v1.15 兜底点击 + v1.16 app 观测版
 
 > 状态：**按键链 ✅**（T1 `voice_fwd.WIN_IP=WINDOWS_IP` 生效；PING 双口 PONG）；
 > **语音音频链 ✅**；**扩展动作 v1.2 ✅ 已实机验收**（4/4；「最小化→还原」前台修复已合入上游）；
@@ -24,9 +24,24 @@
 > **★ presence 心跳（win_receiver v1.11）= ✅ 已上线**（2026-10-14 04:42 经 RUN 通道零到场升级；单代理报
 > voice/key/audio 至 T1 :8790——T1 侧离线闸门 + 去硬编码 IP；`presence_beat.py` 随 update 脚本分发。
 > **注意**：主档在 `remote-hub/presence_beat.py`，改后需同步本目录副本（随 8000 分发到 Win）。
+> **★ win_actions v1.16 = ✅ 已上线**（2026-10-14 15:45 经 RUN 通道零到场升级〔第 6 次〕：
+> `do_app_activate` 观测日志补强；四证闭环 = sha256 逐字节一致 + VERSION=1.16 + 进程重启 + selftest 全绿）。
 > 鼠标模式 = 遥控器长按直播键切换：方向=滑行移光标 / OK 短=左键·长=右键 / 音量±=滚动 / 返回=退出
 > / 模式内**电源·主页照常可用**（可随时跳出去打开应用）/ 开·关·模式内单按均弹 **HUD 浮层提示**
 > （T1 `voice_fwd` v2.6 发 `MOUSE:MODE:*`；Mac 对等端 lua v1.3 + key_bridge v1.14 同日上线）。
+
+## v1.16 变更（2026-10-14 15:4x）—— `do_app_activate` 观测日志（聚焦键最终落点可视，零到场第 6 次）
+
+- **背景**：10-14 凌晨 FOCUS_INPUT 排查曾因 `do_app_activate` 无文件日志而无法判定「前台是谁」
+  （v1.15 已加 `app=` 结果字段）——本轮把**激活动作本身**也补上落盘观测，闭合最后可观测性缺口。
+- **变更**：`do_app_activate` 两处补 `_logv`——成功路径
+  `app-activate '<q>': front=<k> -> <key> ok=<bool>`／未运行路径
+  `app-activate '<q>': front=<k>, not-running -> launch`（均含 `front=` 当前前台键）。
+- **测试**：`actions_offline_test.py` **462/462**（+3：v1.16 变更块 / app-activate / front 观测；
+  版本守护断言同步 1.15→1.16）。
+- **部署取证**：15:45 经 RUN 通道升级——post 指纹 `win_actions.py sha256=7CF0A6E6…` + 回传
+  `VERSION = "1.16"` + 进程重启（`pid=23520 pythonw.exe`）+ `win_actions v1.16 loaded (uia=ready)`
+  + selftest 全绿，四证闭环。
 
 ## v1.11 变更（2026-10-14）—— presence 心跳（在线注册 / T1 侧离线闸门）
 
@@ -364,10 +379,10 @@
 
 | 文件 | 用途 |
 |---|---|
-| `win_receiver.py` | 按键/语音触发接收端主程序（跑在 Windows；**v1.10** TARGET:SWITCH 设备切换路由 + **v1.9** ★ SendInput 类统一修复 + MOUSE:* 路由 + 防抖首击修复 + 选择器 v2 + URL/RUN 保真 + 麦克风切换） |
+| `win_receiver.py` | 按键/语音触发接收端主程序（跑在 Windows；**v1.11** presence 心跳（单代理报 voice/key/audio）+ **v1.10** TARGET:SWITCH 设备切换路由 + **v1.9** ★ SendInput 类统一修复 + MOUSE:* 路由 + 防抖首击修复 + 选择器 v2 + URL/RUN 保真 + 麦克风切换） |
 | `win_audio_switch.py` | **默认录音设备按需切换**（**v1.2**；方案 V：按下→CABLE / 松开延迟切回 / 自愈；v1.2 = COM 初始化裸 Win32 修复） |
-| `win_actions.py` | **扩展动作实现**（CLICK/FOCUS_INPUT/APP:*/URL:/RUN:/MOUSE:*/TARGET:SWITCH:*；**v1.15** FOCUS_INPUT 兜底点击 + app 观测 + v1.14 设备切换 HUD + v1.13 ★ SendInput 类统一修复 + v1.12 速度清零/HUD/取证 + v1.11 滑行引擎 + v1.10 长按关闭 + picker v2 系列外观） |
-| `actions_offline_test.py` | **扩展动作离线测试**（**459/459**；FakeBackend 打桩 + 布局/图标/名称/UWP/包应用路径/光学/长名截断滚动/网格导航/close_poll 关闭轮询/设备切换 HUD/聚焦兜底点击 纯逻辑 + 源码约定守护, 无需 Windows） |
+| `win_actions.py` | **扩展动作实现**（CLICK/FOCUS_INPUT/APP:*/URL:/RUN:/MOUSE:*/TARGET:SWITCH:*；**v1.16** app-activate 观测日志 + v1.15 FOCUS_INPUT 兜底点击 + app 观测 + v1.14 设备切换 HUD + v1.13 ★ SendInput 类统一修复 + v1.12 速度清零/HUD/取证 + v1.11 滑行引擎 + v1.10 长按关闭 + picker v2 系列外观） |
+| `actions_offline_test.py` | **扩展动作离线测试**（**462/462**；FakeBackend 打桩 + 布局/图标/名称/UWP/包应用路径/光学/长名截断滚动/网格导航/close_poll 关闭轮询/设备切换 HUD/聚焦兜底点击/v1.16 观测日志 纯逻辑 + 源码约定守护, 无需 Windows） |
 | `audio_switch_offline_test.py` | **麦克风切换离线测试**（**74/74**；打桩设备层 + 真实 Timer 调度 + COM 初始化约定） |
 | `receiver_smoke_test.py` | **接收端时序冒烟**（**28/28**；先切后注入/松开调度/fail-open/picker 路由/URL·RUN 原值/**防抖首击低时钟**） |
 | `update-win-receiver.ps1` | 按键链更新脚本（**v1.10**：冷更新支持 + tkinter 检查 + 3 文件（receiver v1.6 / actions v1.10 / audio_switch v1.2）+ 备份 + PING + selftest） |

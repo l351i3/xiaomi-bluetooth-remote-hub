@@ -47,6 +47,8 @@
     约定守护（SWITCH_NAMES·_hud_open_text 抽取·pump swhud 接入·双前缀路由·版本标识）
 22) v1.15 FOCUS_INPUT 兜底点击：全 miss + click_at -> NOEDIT+CLICK@底部中央(0.5,0.92) /
     点击失败如实降级 / 矮窗 y 钳制 / 既有 NOEDIT 断言向后兼容（默认不兜底）
+23) v1.16 do_app_activate 观察日志：changelog / app-activate 前缀 / front= 记录
+    源码约定静态守护（另：20d/21d 版本标识断言同步 win_receiver v1.11）
 用法：python3 actions_offline_test.py
 """
 import os
@@ -1086,7 +1088,7 @@ ns["_glide"].stop_all()
 
 # 源码约定静态守护（v1.11）
 check("约定 v1.11 changelog", "v1.11 变更" in _srcv, True)
-check("约定 VERSION 1.15", 'VERSION = "1.15"' in _srcv, True)
+check("约定 VERSION 1.16", 'VERSION = "1.16"' in _srcv, True)
 check("约定 MOUSE_ACCEL=700", "MOUSE_ACCEL = 700.0" in _srcv, True)
 check("约定 MOUSE_MAX=1600", "MOUSE_MAX = 1600.0" in _srcv, True)
 check("约定 MOUSE_STALE=1.2", "MOUSE_STALE = 1.2" in _srcv, True)
@@ -1161,7 +1163,7 @@ try:
         rep = _json.load(open(_rp, encoding="utf-8"))
     check("v1.12 REPORT 写入", bool(r.startswith("report written:")) and rep is not None, True)
     if rep:
-        check("v1.12 REPORT 版本", rep.get("version"), "1.15")
+        check("v1.12 REPORT 版本", rep.get("version"), "1.16")
         check("v1.12 REPORT 计数为字典", isinstance(rep.get("counts"), dict), True)
         check("v1.12 REPORT last 为列表", isinstance(rep.get("last"), list), True)
         check("v1.12 REPORT click 计数在场", isinstance(rep.get("click_ok"), int) and isinstance(rep.get("click_fail"), int), True)
@@ -1255,7 +1257,7 @@ check("20c wa argtypes 引用同型", "POINTER(INPUT)" in src, True)
 check("20d wr 复用分支", "INPUT = win_actions.INPUT" in _srcr, True)
 check("20d wr 复用条件 hasattr", 'hasattr(win_actions, "INPUT")' in _srcr, True)
 check("20d wr 兜底定义在场", _srcr.count("class INPUT(ctypes.Structure):"), 1)
-check("20d wr 版本标识 v1.10", "remotehub-win receiver v1.10" in _srcr, True)
+check("20d wr 版本标识 v1.11", "remotehub-win receiver v1.11" in _srcr, True)
 
 # 20e. 异常加固（v1.13: 同类问题今后直达 receiver.log, 不再静默）
 check("20e mouse_click 落盘", "mouse_click error" in src, True)
@@ -1267,7 +1269,7 @@ check("20e alt_tap 无静默 pass", "_user32.SendInput(1, ctypes.byref(inp), cty
 # 20f. REPORT 指纹 + changelog
 check("20f input_class_module 字段", 'rep["input_class_module"]' in src, True)
 check("20f wa changelog v1.13 历史保留", "v1.13 变更" in src, True)
-check("20f wa VERSION 1.15", 'VERSION = "1.15"' in src, True)
+check("20f wa VERSION 1.16", 'VERSION = "1.16"' in src, True)
 
 # ---- 21) v1.14 电源键连击切换设备（HUD —— 配套 key_bridge v1.15 / T1 voice_fwd v2.7）----
 # 协议: TARGET:SWITCH:ATV|MAC|WIN（仅 DOWN, 重发幂等）。win_receiver v1.10 起同 MOUSE:*
@@ -1301,8 +1303,8 @@ check("21c MOUSE:MODE 无回归", 'cmd.startswith("hud:")' in _srcv, True)
 # 21d. win_receiver v1.10 源码形态
 check("21d 路由双前缀", 'startswith(("MOUSE:", "TARGET:SWITCH:"))' in _srcr, True)
 check("21d SWITCH 日志 tag", 'tag = "SWITCH" if action.startswith("TARGET:SWITCH:") else "MOUSE"' in _srcr, True)
-check("21d 启动 banner v1.10", "remotehub-win receiver v1.10 starting" in _srcr, True)
-check("21d selftest banner v1.10", "win_receiver v1.10 selftest" in _srcr, True)
+check("21d 启动 banner v1.11", "remotehub-win receiver v1.11 starting" in _srcr, True)
+check("21d selftest banner v1.11", "win_receiver v1.11 selftest" in _srcr, True)
 check("21d changelog v1.10", "v1.10 变更" in _srcr, True)
 check("21d 动作表列 TARGET:SWITCH", "TARGET:SWITCH:ATV|MAC|WIN" in _srcr, True)
 
@@ -1315,6 +1317,12 @@ check("22 do_focus_input 接线", "click_at=_click_preserve_cursor" in _srcv, Tr
 check("22 NOEDIT+CLICK 结果串", "NOEDIT+CLICK@%d,%d" in _srcv, True)
 check("22 app= 观测字段", "[winfix=%s app=%s]" in _srcv, True)
 check("22 v1.14 changelog 历史保留", "v1.14 变更" in _srcv, True)
+
+# ---- 23) v1.16 do_app_activate 观察日志（配套 10-14 排障盲点修复）----
+print("== 23) v1.16 观察日志源码约定 ==")
+check("23 changelog v1.16", "v1.16 变更" in _srcv, True)
+check("23 activate 日志前缀", "app-activate" in _srcv, True)
+check("23 activate front 记录", "front=%s" in _srcv, True)
 
 print("")
 print("== 结果: %d PASS / %d FAIL ==" % (PASS, FAIL))

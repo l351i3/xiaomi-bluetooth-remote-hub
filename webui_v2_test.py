@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""t1_webui v2.16 离线全量测试（临时目录副本起服务 :18765, 不碰生产配置）"""
+"""t1_webui v2.17 离线全量测试（临时目录副本起服务 :18765, 不碰生产配置）"""
 import json
 import os
 import shutil
@@ -83,8 +83,34 @@ def main():
     with open(os.path.join(TMP, "voice_target"), "w") as f:
         f.write("atv\n")
     shutil.copy(os.path.join(SRC, "presence.py"), TMP)   # v2.16: /api/presence 依赖同目录 presence.py
+    # v2.17: fake busctl（模式文件驱动: 缺省 fail / ok / disc）注入 PATH，测 /api/remote 双路
+    os.makedirs(os.path.join(TMP, "bin"))
+    shim = f'''#!/bin/sh
+mode=$(cat "{TMP}/busctl_mode" 2>/dev/null)
+case "$mode" in
+  ok)
+    case "$*" in
+      *Battery1*) echo '{{"type":"y","data":77}}' ;;
+      *Connected*) echo '{{"type":"b","data":true}}' ;;
+      *) exit 1 ;;
+    esac ;;
+  disc)
+    case "$*" in
+      *Battery1*) echo '{{"type":"y","data":88}}' ;;
+      *Connected*) echo '{{"type":"b","data":false}}' ;;
+      *) exit 1 ;;
+    esac ;;
+  *) exit 1 ;;
+esac
+'''
+    shim_path = os.path.join(TMP, "bin", "busctl")
+    with open(shim_path, "w") as f:
+        f.write(shim)
+    os.chmod(shim_path, 0o755)
+    srv_env = dict(os.environ)
+    srv_env["PATH"] = os.path.join(TMP, "bin") + os.pathsep + srv_env.get("PATH", "")
 
-    srv = subprocess.Popen([PY, "-u", "t1_webui.py"], cwd=TMP,
+    srv = subprocess.Popen([PY, "-u", "t1_webui.py"], cwd=TMP, env=srv_env,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     try:
         for _ in range(50):
@@ -417,6 +443,26 @@ def main():
         check("过期快照 -> available=False", [st, r.get("available")], [200, False])
         check("主页含 devbar（v2.16）", 'id="devbar"' in html, True)
         check("主页引用 /api/presence（v2.16）", "/api/presence" in html, True)
+        # ---- v2.17: /api/remote（遥控器电量; 降级安全 + fake busctl 三态）----
+        st, r = get("/api/remote")
+        check("busctl 失败 -> available=False（降级）", [st, r.get("available")], [200, False])
+        check("降级 percent=None / connected=False", [r.get("percent"), r.get("connected")], [None, False])
+        check("降级 note 在场", "未连接" in (r.get("note") or ""), True)
+        with open(os.path.join(TMP, "busctl_mode"), "w") as f:
+            f.write("ok")
+        st, r = get("/api/remote")
+        check("busctl ok -> 77% 在线", [st, r.get("available"), r.get("connected"), r.get("percent")],
+              [200, True, True, 77])
+        check("ok 模式无 note", "note" not in r, True)
+        with open(os.path.join(TMP, "busctl_mode"), "w") as f:
+            f.write("disc")
+        st, r = get("/api/remote")
+        check("disc -> 缓存 88% / connected=False",
+              [r.get("available"), r.get("connected"), r.get("percent")], [True, False, 88])
+        check("主页含 renderBatt（v2.17）", "renderBatt" in html, True)
+        check("主页引用 /api/remote（v2.17）", "/api/remote" in html, True)
+        check("电量 10s 轮询（v2.17）", "setInterval(refreshRemoteBattery, 10000)" in html, True)
+        check("主页含遥控器文案（v2.17）", "🎮 遥控器" in html, True)
     finally:
         srv.terminate()
         try:
