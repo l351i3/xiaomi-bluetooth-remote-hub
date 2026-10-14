@@ -52,7 +52,7 @@ RC003 遥控器 ──BLE──> T1
 
 ## 服务实现（key_bridge.py v1.4）
 
-- 文件：`remote-hub/key_bridge.py`；launchd：`~/Library/LaunchAgents/com.remotehub.key-bridge.plist`
+- 文件：`remote-hub/key_bridge.py`；launchd：`~/Library/LaunchAgents/com.remotehub.key-bridge.plist`（源树副本：`mac-launchd/`，随库发布）
 - 日志：`remote-hub/logs/key_bridge.log`（注入进程输出 → `logs/key_bridge_inject.log`）
 - 协议（UDP 文本，与 voice_bridge 同风格）：
   - `KEY <NAME> DOWN` / `KEY <NAME> UP`（T1 → 本服务）
