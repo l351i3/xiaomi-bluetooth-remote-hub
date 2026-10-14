@@ -2,7 +2,7 @@
 
 > 现网版本：T1 `voice_fwd` v2.9 / `relay_min` v0.13 / `t1_webui` v2.17 / `atvv_service` v1.2 / `presence` v1.0 ｜ Mac `key_bridge` v1.15 / `voice_bridge` v0.9 / `atvv_receiver` v1.2 / `app_switch` v1.2 / `AppPicker` v1.3 / `hs_health` v1.0 / `remotehub_focus.lua` v1.6 / `presence_beater` v2.1 ｜ Win `win_receiver` v1.11 / `win_actions` v1.16 / `win_audio_switch` v1.2 / `win_audio_receiver` v1.0 / `presence_beat` v1.0
 >
-> （presence 心跳注册制 10-14 全链接线；更新于 2026-10-14。）
+> （presence 心跳注册制 10-14 全链接线；遥控器电量同日并入；更新于 2026-10-14。）
 
 ---
 
@@ -20,13 +20,13 @@
 ┌───────────────────────────────────────────────────────────────────────────┐
 │  斐讯 T1（Armbian / hci0 = btflow 用户态固件加载链）                       │
 │                                                                           │
-│  /dev/input/event2 ──┬─► relay_min      v0.12 ──pyatv(Companion)──► ATV4K │
+│  /dev/input/event2 ──┬─► relay_min      v0.13 ──pyatv(Companion)──► ATV4K │
 │                      │        （target=atv 时全键 + 语音开 YouTube）       │
 │                      │                                                    │
-│                      ├─► voice_fwd      v2.8  ─┬─ UDP :8788 "VOICE down/up"
+│                      ├─► voice_fwd      v2.9  ─┬─ UDP :8788 "VOICE down/up"
 │                      │   （键分类/连发/长按状态机）└─ UDP :8791 "KEY <A> DOWN/UP"
 │                      │                              （→ mac 或 win，按 keymap）│
-│  MIC(ATVV) ──────────┴─► atvv_service   v1.1  ── UDP :8789 音频流 双播 ──┐ │
+│  MIC(ATVV) ──────────┴─► atvv_service   v1.2  ── UDP :8789 音频流 双播 ──┐ │
 │                                                                          │ │
 │  t1_webui  v2.17  :8765（目标切换 + /keymap 配置 + rev 指纹）              │ │
 └──────────────────────────────────────────────────────────────────────────┘ │
@@ -36,7 +36,7 @@
 ┌───────────────────────────────┐    ┌────────────────────────────────────────┐
 │ macOS（本机）                 │    │ Windows（Win11）                       │
 │                               │    │                                        │
-│ key_bridge v1.15 :8791        │    │ win_receiver v1.10 :8791               │
+│ key_bridge v1.15 :8791        │    │ win_receiver v1.11 :8791               │
 │   └─ CGPost serve 常驻注入    │    │   ├─ win_actions v1.16（扩展动作库）   │
 │   └─ app_switch v1.2 /        │    │   ├─ win_audio_switch v1.2（麦克风切换）│
 │      AppPicker v1.3 /         │    │   └─ 键盘注入（SendInput）             │
@@ -46,7 +46,7 @@
 │ atvv_receiver v1.2 :8789      │    │                                        │
 │   └─ 高通+AGC → BlackHole     │    │ 计划任务自启（%USERPROFILE%\remotehub-win\）│
 │ hs_health v1.0（每小时巡检）  │    │                                        │
-│ launchd ×5 常驻               │    │                                        │
+│ launchd ×6 常驻               │    │                                        │
 └───────────────────────────────┘    └────────────────────────────────────────┘
 ```
 

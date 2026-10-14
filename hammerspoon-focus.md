@@ -43,7 +43,7 @@
 
 ```
 遥控器 #41 / OK长按（或任意改绑键）
-  └─ T1 voice_fwd.py v2.8 ──UDP:8791──> Mac key_bridge.py v1.15
+  └─ T1 voice_fwd.py v2.9 ──UDP:8791──> Mac key_bridge.py v1.15
         ├─ "KEY FOCUS_INPUT DOWN" → do_focus_input()（0.6s 防抖, 线程内）
         ├─ "KEY CLICK DOWN"       → do_click()（0.6s 防抖, 线程内）
         └─ APP 动作成功后          → do_focus_assist()（异步）
